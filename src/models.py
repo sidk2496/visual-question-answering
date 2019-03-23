@@ -1,16 +1,17 @@
 import tensorflow as tf
 
-VOCAB_SIZE = 12602
+VOCAB_SIZE = 12913
 MAX_QUESTION_LEN = 26
 
 
 class ShowNTellNet:
-    def __init__(self, question_embed_dim, lstm_dim, n_answers):
+    def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name):
         self.question_embed_dim = question_embed_dim
         self.lstm_dim = lstm_dim
         self.n_answers = n_answers
         self.model = None
         self.build()
+	self.model_name = model_name
 
     def build(self):
         image_features = tf.keras.layers.Input(shape=(4096,),
@@ -70,13 +71,15 @@ class ShowNTellNet:
                            optimizer='adam', metrics=['accuracy'])
 
     def train(self, x_train, y_train, x_val, y_val, batch_size, epochs):
+
+	callbacks = [ModelCheckpoint(self.model_name, monitor='val_loss', save_best_only=True, verbose=2)]
         self.model.fit(x=x_train,
                        y=y_train,
                        batch_size=batch_size,
                        epochs=epochs,
                        verbose=1,
                        validation_split=0.2,
-                       shuffle=True)
+                       shuffle=True, callbacks=callbacks)
 
 
 class VQANet:
