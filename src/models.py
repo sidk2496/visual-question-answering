@@ -17,17 +17,24 @@ class VQANet:
         self.model.load_weights(weights_filename)
 
     def train(self, train_data, val_data, batch_size=32, epochs=10):
-        callbacks = [tf.keras.callbacks.ModelCheckpoint(self.model_name,
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(self.model_name,
                                                         monitor='val_loss',
                                                         save_best_only=True,
-                                                        verbose=2)]
+                                                        verbose=2)
+
+        tensorboard = tf.keras.callbacks.TensorBoard(log_dir='../../train_log',
+                                                     write_graph=True,
+                                                     batch_size=batch_size)
+
+        callbacks = [checkpoint, tensorboard]
+
         history = self.model.fit_generator(generator=train_data,
                                            validation_data=val_data,
                                            epochs=epochs,
                                            verbose=1,
                                            callbacks=callbacks,
                                            workers=cpu_count(),
-                                           use_multiprocessing=True)
+                                           use_multiprocessing=False)
         return history
 
 

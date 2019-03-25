@@ -30,6 +30,11 @@ def main():
     VOCAB_SIZE = len(prepro_data['ix_to_word'])
     MAX_QUESTION_LEN = qa_data['ques_train'].shape[1]
 
+    # qa_data = h5.File('../../data/data_train_val/data_prepro.h5', 'r')
+    # img_feat = h5.File('../../data/data_train_val/data_img.h5', 'r')
+    # VOCAB_SIZE = 12602
+    # MAX_QUESTION_LEN = 26
+
     questions_train, questions_val, ques_to_img_train, ques_to_img_val, answers_train, answers_val = \
         train_test_split(np.array(qa_data['ques_train'])[:n_train],
                          np.array(qa_data['img_pos_train'])[:n_train],
@@ -62,7 +67,6 @@ def main():
                                VOCAB_SIZE=VOCAB_SIZE,
                                MAX_QUESTION_LEN=MAX_QUESTION_LEN)
 
-
     print("Starting training...")
     history = model.train(train_data=train_datagen,
                           val_data=val_datagen,
@@ -70,15 +74,8 @@ def main():
                           epochs=epochs)
     print("Finished training.")
 
-    print(history.history)
-
     with open('history.pkl', 'wb') as history_file:
         pickle.dump(history.history, history_file)
-
-    with open('history.pkl', 'rb') as history_file:
-        h = pickle.load(history_file)
-
-    print(h)
 
 
 if __name__ == '__main__':
