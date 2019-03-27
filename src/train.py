@@ -10,7 +10,9 @@ from tensorflow import set_random_seed
 
 
 def main():
+    from tensorflow.python.client import device_lib
 
+    print(device_lib.list_local_devices())
     seed(24)
     set_random_seed(24)
 
@@ -21,19 +23,19 @@ def main():
     n_answers = 1000
     n_train = 10
 
-    dir_path = "../../data/"
-    qa_data = h5.File(dir_path + "v2_data_prepro.h5", "r")
-    img_feat = h5.File(dir_path + "v2_data_img.h5", "r")
-    with open(dir_path + 'v2_data_prepro.json', 'r') as prepro_file:
-        prepro_data = json.load(prepro_file)
+    # dir_path = "../../data/"
+    # qa_data = h5.File(dir_path + "v2_data_prepro.h5", "r")
+    # img_feat = h5.File(dir_path + "v2_data_img.h5", "r")
+    # with open(dir_path + 'v2_data_prepro.json', 'r') as prepro_file:
+    #     prepro_data = json.load(prepro_file)
+    #
+    # VOCAB_SIZE = len(prepro_data['ix_to_word'])
+    # MAX_QUESTION_LEN = qa_data['ques_train'].shape[1]
 
-    VOCAB_SIZE = len(prepro_data['ix_to_word'])
-    MAX_QUESTION_LEN = qa_data['ques_train'].shape[1]
-
-    # qa_data = h5.File('../../data/data_train_val/data_prepro.h5', 'r')
-    # img_feat = h5.File('../../data/data_train_val/data_img.h5', 'r')
-    # VOCAB_SIZE = 12602
-    # MAX_QUESTION_LEN = 26
+    qa_data = h5.File('../../data/data_train_val/data_prepro.h5', 'r')
+    img_feat = h5.File('../../data/data_train_val/data_img.h5', 'r')
+    VOCAB_SIZE = 12602
+    MAX_QUESTION_LEN = 26
 
     questions_train, questions_val, ques_to_img_train, ques_to_img_val, answers_train, answers_val = \
         train_test_split(np.array(qa_data['ques_train'])[:n_train],
@@ -63,7 +65,7 @@ def main():
     model = TimeDistributedCNN(question_embed_dim=question_embed_dim,
                                lstm_dim=lstm_dim,
                                n_answers=n_answers,
-                               model_name='time_dist_cnn.h5',
+                               model_name='../../models/time_dist_cnn.h5',
                                VOCAB_SIZE=VOCAB_SIZE,
                                MAX_QUESTION_LEN=MAX_QUESTION_LEN)
 
