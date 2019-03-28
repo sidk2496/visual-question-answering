@@ -34,11 +34,11 @@ class DataGenerator(tf.keras.utils.Sequence):
             np.random.shuffle(self.indices)
 
     def __data_generation(self, indices):
-        X_ques = self.questions[indices]
+        X_ques = self.questions[indices, :-1]
         ques_to_img = self.ques_to_img[indices] - 1
         X_img = self.img_feat[ques_to_img]
-        y_ques = tf.keras.utils.to_categorical(y=X_ques,
-                                               num_classes=self.VOCAB_SIZE)
+        y_ques = tf.keras.utils.to_categorical(y=self.questions[indices, 1:],
+                                               num_classes=self.VOCAB_SIZE + 1)
         y_ans = tf.keras.utils.to_categorical(y=self.answers[indices] - 1,
                                               num_classes=self.n_answers)
         return [X_img, X_ques], [y_ques, y_ans]
