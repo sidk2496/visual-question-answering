@@ -1,10 +1,11 @@
+import numpy as np
+np.random.seed(24)
 import tensorflow as tf
+tf.set_random_seed(24)
 from multiprocessing import cpu_count
-from tensorflow import set_random_seed
 
-set_random_seed(24)
 
-class VQANet:
+class VQA_Net:
     def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN):
         self.question_embed_dim = question_embed_dim
         self.lstm_dim = lstm_dim
@@ -22,7 +23,7 @@ class VQANet:
                                                         save_best_only=True,
                                                         verbose=2)
 
-        tensorboard = tf.keras.callbacks.TensorBoard(log_dir='../../train_log',
+        tensorboard = tf.keras.callbacks.TensorBoard(log_dir='../train_log',
                                                      write_graph=True,
                                                      batch_size=batch_size)
 
@@ -38,7 +39,7 @@ class VQANet:
         return history
 
 
-class ShowNTellNet(VQANet):
+class ShowNTell_Net(VQA_Net):
     def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
@@ -51,7 +52,8 @@ class ShowNTellNet(VQANet):
     def build(self):
         # with tf.device('/cpu:0'):
         image_features = tf.keras.layers.Input(shape=(4096,),
-                                               dtype='float32')
+                                               dtype='float32',
+                                               name='image_input')
 
         image_embedding = tf.keras.layers.Dense(units=self.question_embed_dim,
                                                 activation='elu',
@@ -64,12 +66,14 @@ class ShowNTellNet(VQANet):
                                                dtype='int32',
                                                name='question_input')
 
-        print(question_input)
+        question_input_masked = tf.keras.layers.Masking(mask_value=0,
+                                                        input_shape=(self.MAX_QUESTION_LEN,),
+                                                        name='question_input_masked')(inputs=question_input)
+
         question_embedding = tf.keras.layers.Embedding(input_dim=self.VOCAB_SIZE + 1,
                                                        output_dim=self.question_embed_dim,
                                                        input_length=self.MAX_QUESTION_LEN,
-                                                       name='question_embedding')(inputs=question_input)
-        print(question_embedding)
+                                                       name='question_embedding')(inputs=question_input_masked)
 
         image_question_embedding = tf.keras.layers.Concatenate(axis=1,
                                                                name='image_question_embedding')(inputs=[reshape_image_embedding, question_embedding])
@@ -108,7 +112,7 @@ class ShowNTellNet(VQANet):
                            metrics=['accuracy'])
 
 
-class TimeDistributedCNN(VQANet):
+class TimeDistributedCNN_Net(VQA_Net):
     def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
@@ -122,7 +126,8 @@ class TimeDistributedCNN(VQANet):
     def build(self):
         # with tf.device('/cpu:0'):
         image_features = tf.keras.layers.Input(shape=(4096,),
-                                               dtype='float32')
+                                               dtype='float32',
+                                               name='image_input')
 
         image_embedding = tf.keras.layers.Dense(units=self.question_embed_dim,
                                                 activation='elu',
@@ -135,11 +140,14 @@ class TimeDistributedCNN(VQANet):
                                                dtype='int32',
                                                name='question_input')
 
+        question_input_masked = tf.keras.layers.Masking(mask_value=0,
+                                                        input_shape=(self.MAX_QUESTION_LEN,),
+                                                        name='question_input_masked')(inputs=question_input)
+
         question_embedding = tf.keras.layers.Embedding(input_dim=self.VOCAB_SIZE + 1,
                                                        output_dim=self.question_embed_dim,
                                                        input_length=self.MAX_QUESTION_LEN,
-                                                       name='question_embedding',
-                                                       mask_zero=True)(inputs=question_input)
+                                                       name='question_embedding')(inputs=question_input_masked)
 
         image_question_embedding = tf.keras.layers.Concatenate(axis=-1,
                                                                name='image_question_embedding')(inputs=[repeated_image_embedding, question_embedding])

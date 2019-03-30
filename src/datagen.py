@@ -1,10 +1,8 @@
 import numpy as np
+np.random.seed(24)
 import tensorflow as tf
-from tensorflow import set_random_seed
-from numpy.random import seed
+tf.set_random_seed(24)
 
-seed(24)
-set_random_seed(24)
 
 class DataGenerator(tf.keras.utils.Sequence):
     def __init__(self, img_feat, questions, answers, ques_to_img, VOCAB_SIZE, n_answers, batch_size=32, shuffle=True):
