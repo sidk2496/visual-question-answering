@@ -1,12 +1,22 @@
+seed = 10707
+
 import numpy as np
-np.random.seed(24)
+np.random.seed(seed)
 import tensorflow as tf
-tf.set_random_seed(24)
+tf.set_random_seed(seed)
 from multiprocessing import cpu_count
 
+def cross_entropy_loss(y_true, y_pred):
+    return tf.keras.backend.categorical_crossentropy(target=y_true[:, 0, :], output=y_pred[:, 0, :])
+
+def custom_acc(y_true, y_pred):
+    pred = tf.keras.backend.argmax(x=y_pred[:, 0, :], axis=-1)
+    trues = tf.keras.backend.argmax(x=y_true[:, :, :], axis=-1)
+    acc = tf.keras.backend.sum(tf.keras.backend.cast(tf.keras.backend.equal(pred, trues), 'float32'))
+    return tf.keras.backend.minimum(acc / 3, 1.0)
 
 class VQA_Net:
-    def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN):
+    def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         self.question_embed_dim = question_embed_dim
         self.lstm_dim = lstm_dim
         self.n_answers = n_answers
@@ -40,7 +50,7 @@ class VQA_Net:
 
 
 class ShowNTell_Net(VQA_Net):
-    def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN):
+    def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
                          n_answers=n_answers,
@@ -56,11 +66,11 @@ class ShowNTell_Net(VQA_Net):
                                                name='image_input')
 
         image_embedding = tf.keras.layers.Dense(units=self.question_embed_dim,
-                                                activation='elu',
+                                                activation='relu',
                                                 name='image_embedding')(inputs=image_features)
 
         reshape_image_embedding = tf.keras.layers.Reshape(target_shape=(1, self.question_embed_dim),
-                                                  name='reshape_image_embedding')(image_embedding)
+                                                          name='reshape_image_embedding')(inputs=image_embedding)
 
         question_input = tf.keras.layers.Input(shape=(self.MAX_QUESTION_LEN,),
                                                dtype='int32',
@@ -70,7 +80,7 @@ class ShowNTell_Net(VQA_Net):
                                                         input_shape=(self.MAX_QUESTION_LEN,),
                                                         name='question_input_masked')(inputs=question_input)
 
-        question_embedding = tf.keras.layers.Embedding(input_dim=self.VOCAB_SIZE + 1,
+        question_embedding = tf.keras.layers.Embedding(input_dim=self.VOCAB_SIZE,
                                                        output_dim=self.question_embed_dim,
                                                        input_length=self.MAX_QUESTION_LEN,
                                                        name='question_embedding')(inputs=question_input_masked)
@@ -83,7 +93,7 @@ class ShowNTell_Net(VQA_Net):
                                                             return_state=True,
                                                             name='question_generator')(inputs=image_question_embedding)
 
-        question_pred = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE + 1,
+        question_pred = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE,
                                                                                     activation='softmax'),
                                                         name='question_word_classifier')(inputs=question_features)
 
@@ -91,29 +101,39 @@ class ShowNTell_Net(VQA_Net):
                                                            name='question_word_classifier_trunc_begin')(inputs=question_pred)
 
         answer_fc_1 = tf.keras.layers.Dense(units=1000,
-                                           activation='elu',
+                                           activation='relu',
                                            name='answer_fc_1')(inputs=last_h)
 
         answer_fc_2 = tf.keras.layers.Dense(units=1000,
-                                           activation='elu',
+                                           activation='relu',
                                            name='answer_fc_2')(inputs=answer_fc_1)
 
         answer_pred = tf.keras.layers.Dense(units=self.n_answers,
                                             activation='softmax',
                                             name='answer_classifier')(inputs=answer_fc_2)
 
+        repeated_answer_pred = tf.keras.layers.RepeatVector(n=11,
+                                                            name='repeated_answer_pred')(inputs=answer_pred)
+
         self.model = tf.keras.Model(inputs=[image_features, question_input],
-                                    outputs=[question_pred_trunc_begin, answer_pred])
+                                    outputs=[repeated_answer_pred])
 
         # self.model = tf.keras.utils.multi_gpu_model(model=model, gpus=1)
 
-        self.model.compile(loss='categorical_crossentropy',
+        losses = {
+            'repeated_answer_pred': cross_entropy_loss
+        }
+        metrics = {
+            'repeated_answer_pred': custom_acc
+        }
+
+        self.model.compile(loss=losses,
                            optimizer='adam',
-                           metrics=['accuracy'])
+                           metrics=metrics)
 
 
 class TimeDistributedCNN_Net(VQA_Net):
-    def __init__(self, question_embed_dim, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN):
+    def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
                          n_answers=n_answers,
@@ -130,8 +150,12 @@ class TimeDistributedCNN_Net(VQA_Net):
                                                name='image_input')
 
         image_embedding = tf.keras.layers.Dense(units=self.question_embed_dim,
-                                                activation='elu',
+                                                activation='relu',
                                                 name='image_embedding')(inputs=image_features)
+
+        # image_embedding_dropout = tf.keras.layers.Dropout(rate=0.7,
+        #                                            seed=seed,
+        #                                            name='image_embedding_dropout')(inputs=image_embedding)                                       
 
         repeated_image_embedding = tf.keras.layers.RepeatVector(n=self.MAX_QUESTION_LEN,
                                                                 name='repeated_image_embedding')(inputs=image_embedding)
@@ -144,7 +168,7 @@ class TimeDistributedCNN_Net(VQA_Net):
                                                         input_shape=(self.MAX_QUESTION_LEN,),
                                                         name='question_input_masked')(inputs=question_input)
 
-        question_embedding = tf.keras.layers.Embedding(input_dim=self.VOCAB_SIZE + 1,
+        question_embedding = tf.keras.layers.Embedding(input_dim=self.VOCAB_SIZE,
                                                        output_dim=self.question_embed_dim,
                                                        input_length=self.MAX_QUESTION_LEN,
                                                        name='question_embedding')(inputs=question_input_masked)
@@ -157,17 +181,25 @@ class TimeDistributedCNN_Net(VQA_Net):
                                                             return_state=True,
                                                             name='question_generator')(inputs=image_question_embedding)
 
-        question_pred = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE + 1,
+        question_pred = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE,
                                                                                     activation='softmax'),
                                                         name='question_word_classifier')(inputs=question_features)
 
         answer_fc_1 = tf.keras.layers.Dense(units=1000,
-                                            activation='elu',
+                                            activation='relu',
                                             name='answer_fc_1')(inputs=last_h)
 
+        # answer_dropout_1 = tf.keras.layers.Dropout(rate=0.7,
+        #                                            seed=seed,
+        #                                            name='answer_dropout_1')(inputs=answer_fc_1)
+
         answer_fc_2 = tf.keras.layers.Dense(units=1000,
-                                            activation='elu',
+                                            activation='relu',
                                             name='answer_fc_2')(inputs=answer_fc_1)
+
+        # answer_dropout_2 = tf.keras.layers.Dropout(rate=0.7,
+        #                                            seed=seed,
+        #                                            name='answer_dropout_2')(inputs=answer_fc_2)
 
         answer_pred = tf.keras.layers.Dense(units=self.n_answers,
                                             activation='softmax',

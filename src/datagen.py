@@ -1,10 +1,13 @@
+seed = 10707    
+
 import numpy as np
-np.random.seed(24)
+np.random.seed(seed)
 import tensorflow as tf
-tf.set_random_seed(24)
+tf.set_random_seed(seed)
 
 
 class DataGenerator(tf.keras.utils.Sequence):
+    # Initialize generator
     def __init__(self, img_feat, questions, answers, ques_to_img, VOCAB_SIZE, n_answers, batch_size=32, shuffle=True):
         self.img_feat = img_feat
         self.questions = questions
@@ -20,23 +23,26 @@ class DataGenerator(tf.keras.utils.Sequence):
     def __len__(self):
         return int(np.ceil(self.n_data / self.batch_size))
 
+    # Generate batch
     def __getitem__(self, idx):
         begin = idx * self.batch_size
         end = min((idx + 1) * self.batch_size, self.n_data)
         X, y = self.__data_generation(self.indices[begin: end])
         return X, y
 
+    # Shuffule after each epoch
     def on_epoch_end(self):
         self.indices = np.arange(self.n_data)
         if self.shuffle == True:
             np.random.shuffle(self.indices)
 
+    # Create batch
     def __data_generation(self, indices):
         X_ques = self.questions[indices, :-1]
         ques_to_img = self.ques_to_img[indices] - 1
         X_img = self.img_feat[ques_to_img]
         y_ques = tf.keras.utils.to_categorical(y=self.questions[indices, 1:],
-                                               num_classes=self.VOCAB_SIZE + 1)
+                                               num_classes=self.VOCAB_SIZE)
         y_ans = tf.keras.utils.to_categorical(y=self.answers[indices] - 1,
                                               num_classes=self.n_answers)
-        return [X_img, X_ques], [y_ques, y_ans]
+        return [X_img, X_ques], [y_ans]
