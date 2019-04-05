@@ -6,14 +6,15 @@ import tensorflow as tf
 tf.set_random_seed(seed)
 from multiprocessing import cpu_count
 
-def cross_entropy_loss(y_true, y_pred):
-    return tf.keras.backend.categorical_crossentropy(target=y_true[:, 0, :], output=y_pred[:, 0, :])
+def dummy(y_true, y_pred):
+    return tf.keras.backend.zeros(1)
 
 def custom_acc(y_true, y_pred):
-    pred = tf.keras.backend.argmax(x=y_pred[:, 0, :], axis=-1)
-    trues = tf.keras.backend.argmax(x=y_true[:, :, :], axis=-1)
-    acc = tf.keras.backend.sum(tf.keras.backend.cast(tf.keras.backend.equal(pred, trues), 'float32'))
-    return tf.keras.backend.minimum(acc / 3, 1.0)
+    best_pred_count = tf.keras.backend.sum(tf.keras.backend.cast(tf.keras.backend.equal(y_true, y_pred),
+                                                     dtype='float32'),
+                               axis=-1)
+    acc = tf.keras.backend.minimum(best_pred_count / 3, 1.0)
+    return tf.keras.backend.mean(acc)
 
 class VQA_Net:
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
@@ -112,18 +113,30 @@ class ShowNTell_Net(VQA_Net):
                                             activation='softmax',
                                             name='answer_classifier')(inputs=answer_fc_2)
 
-        repeated_answer_pred = tf.keras.layers.RepeatVector(n=11,
-                                                            name='repeated_answer_pred')(inputs=answer_pred)
+        pred_best_ans = tf.keras.layers.Lambda(lambda x: tf.keras.backend.argmax(x, axis=-1),
+                                                 name='y_pred_best_ans')(inputs=answer_pred)
+
+        reshape_pred_best_ans = tf.keras.layers.Reshape(target_shape=(1,),
+                                                        name='reshape_y_pred_best_ans')(inputs=pred_best_ans)
+
+
+        repeated_answer_pred = tf.keras.layers.RepeatVector(n=10,
+                                                            name='repeated_answer_pred_')(inputs=reshape_pred_best_ans)
+
+        repeated_answer_pred = tf.keras.layers.Reshape(target_shape=(10,),
+                                                       name='repeated_answer_pred')(inputs=repeated_answer_pred)
 
         self.model = tf.keras.Model(inputs=[image_features, question_input],
-                                    outputs=[repeated_answer_pred])
+                                    outputs=[answer_pred, repeated_answer_pred])
 
         # self.model = tf.keras.utils.multi_gpu_model(model=model, gpus=1)
 
         losses = {
-            'repeated_answer_pred': cross_entropy_loss
+            'answer_classifier': 'categorical_crossentropy',
+            'repeated_answer_pred': dummy
         }
         metrics = {
+            'answer_classifier': 'acc',
             'repeated_answer_pred': custom_acc
         }
 

@@ -51,7 +51,10 @@ def main():
     except FileNotFoundError:
         # Load all 10 answers per question
         answers = np.zeros((len(qa_data['answers']), 11))
+
+        # best answer at idx 0
         answers[:, 0] = qa_data['answers']
+
         ques_id_to_ix = {ques_id: ix for ix, ques_id in enumerate(qa_data['question_id_train'])}
         ans_to_ix = {ans: int(ix) for ix, ans in prepro_data['ix_to_ans'].items()}
 
@@ -65,7 +68,7 @@ def main():
             if ques_id in ques_id_to_ix.keys():
                 ques_ix = ques_id_to_ix[ques_id]
                 for answer_num, answer in enumerate(annotation['answers']):
-                    answers[ques_ix, answer_num] = ans_to_ix.get(answer['answer'], n_answers)
+                    answers[ques_ix, answer_num + 1] = ans_to_ix.get(answer['answer'], n_answers)
             print(annot_num)
 
         for annot_num, annotation in enumerate(val_annotations):
@@ -73,7 +76,7 @@ def main():
             if ques_id in ques_id_to_ix.keys():
                 ques_ix = ques_id_to_ix[ques_id]
                 for answer_num, answer in enumerate(annotation['answers']):
-                    answers[ques_ix, answer_num] = ans_to_ix.get(answer['answer'], n_answers)
+                    answers[ques_ix, answer_num + 1] = ans_to_ix.get(answer['answer'], n_answers)
             print(annot_num)
 
         with open('../data/answers.pkl', 'wb') as answers_file:
