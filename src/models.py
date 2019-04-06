@@ -31,7 +31,7 @@ class VQA_Net:
 
     def train(self, train_data, val_data, batch_size=32, epochs=10):
         checkpoint = tf.keras.callbacks.ModelCheckpoint(self.model_name,
-                                                        monitor='val_custom_acc',
+                                                        monitor='val_best_ans_repeat10_custom_acc',
                                                         save_best_only=True,
                                                         verbose=2)
 
@@ -144,6 +144,8 @@ class ShowNTell_Net(VQA_Net):
                            optimizer='adam',
                            metrics=metrics)
 
+        print("MODEL METRICS", self.model.metrics_names)
+
 
 class TimeDistributedCNN_Net(VQA_Net):
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
@@ -224,7 +226,6 @@ class TimeDistributedCNN_Net(VQA_Net):
         self.model.compile(loss='categorical_crossentropy',
                            optimizer='adam',
                            metrics=['accuracy'])
-        print(self.model.metric_names)
 
 
 class AttentionShowNTell(VQA_Net):
@@ -280,8 +281,7 @@ class AttentionShowNTell(VQA_Net):
         attention_weights = tf.keras.layers.Lambda(lambda x: tf.keras.activations.softmax(x, axis=1),
                                                    name='attention_softmax')(inputs=attention)
 
-        attention_mul = tf.keras.layers.Multiply([attention_weights, question_features],
-                                                 name='attention_mul')
+        attention_mul = tf.keras.layers.Multiply(name='attention_mul')(inputs=[attention_weights, question_features])
 
         last_h = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=1),
                                         name='context')(inputs=attention_mul)
@@ -330,3 +330,5 @@ class AttentionShowNTell(VQA_Net):
         self.model.compile(loss=losses,
                            optimizer='adam',
                            metrics=metrics)
+
+        print("MODEL METRICS", self.model.metrics_names)

@@ -123,7 +123,7 @@ def main():
 
     print("Defining  model...")
     # Define model
-    model = ShowNTell_Net(question_embed_dim=question_embed_dim,
+    model = AttentionShowNTell(question_embed_dim=question_embed_dim,
                           lstm_dim=lstm_dim,
                           n_answers=n_answers,
                           model_name='../models/show_n_tell.h5',
