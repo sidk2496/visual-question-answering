@@ -8,6 +8,8 @@ tf.set_random_seed(seed)
 import h5py as h5
 import pickle
 import json
+import sys
+
 from models import *
 from datagen import *
 from sklearn.model_selection import train_test_split
@@ -69,7 +71,9 @@ def main():
                 ques_ix = ques_id_to_ix[ques_id]
                 for answer_num, answer in enumerate(annotation['answers']):
                     answers[ques_ix, answer_num + 1] = ans_to_ix.get(answer['answer'], n_answers)
-            print(annot_num)
+            if (annot_num + 1) % 10000 == 0:
+                sys.stdout.write("Completed processing {0:6d} annotations...\r".format(annot_num + 1))
+        sys.stdout.write("Completed processing {0:6d} annotations...\r".format(annot_num + 1))
 
         for annot_num, annotation in enumerate(val_annotations):
             ques_id = annotation['question_id']
@@ -77,7 +81,9 @@ def main():
                 ques_ix = ques_id_to_ix[ques_id]
                 for answer_num, answer in enumerate(annotation['answers']):
                     answers[ques_ix, answer_num + 1] = ans_to_ix.get(answer['answer'], n_answers)
-            print(annot_num)
+            if (annot_num + 1) % 10000 == 0:
+                sys.stdout.write("Completed processing {0:6d} annotations...\r".format(annot_num + 1))
+        sys.stdout.write("Completed processing {0:6d} annotations...\n".format(annot_num + 1))
 
         with open('../data/answers.pkl', 'wb') as answers_file:
             pickle.dump(answers, answers_file)
