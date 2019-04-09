@@ -95,12 +95,12 @@ class ShowNTell_Net(VQA_Net):
                                                             return_state=True,
                                                             name='question_generator')(inputs=image_question_embedding)
 
-        question_pred_ = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE,
-                                                                                    activation='softmax'),
-                                                        name='ques_word_classifier_')(inputs=question_features)
+        # question_pred_ = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE,
+        #                                                                             activation='softmax'),
+        #                                                 name='ques_word_classifier_')(inputs=question_features)
 
-        question_pred = tf.keras.layers.Lambda(lambda x: x[:, 1:, :],
-                                               name='ques_word_classifier')(inputs=question_pred_)
+        # question_pred = tf.keras.layers.Lambda(lambda x: x[:, 1:, :],
+        #                                        name='ques_word_classifier')(inputs=question_pred_)
 
         answer_fc_1 = tf.keras.layers.Dense(units=1000,
                                             activation='relu',
@@ -127,15 +127,15 @@ class ShowNTell_Net(VQA_Net):
                                                     name='best_ans_repeat10')(inputs=best_ans_repeat10)
 
         self.model = tf.keras.Model(inputs=[image_features, question_input],
-                                    outputs=[question_pred, answer_pred, best_ans_repeat10])
+                                    outputs=[answer_pred, best_ans_repeat10])
 
         losses = {
-            'ques_word_classifier': 'categorical_crossentropy',
+            # 'ques_word_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
             'best_ans_repeat10': dummy
         }
         metrics = {
-            'ques_word_classifier': 'acc',
+            # 'ques_word_classifier': 'acc',
             'answer_classifier': 'acc',
             'best_ans_repeat10': custom_acc,
         }
@@ -271,9 +271,9 @@ class AttentionShowNTell(VQA_Net):
                                                  return_sequences=True,
                                                  name='question_generator')(inputs=image_question_embedding)
 
-        question_pred_ = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE,
-                                                                                    activation='softmax'),
-                                                        name='ques_word_classifier_')(inputs=question_features)
+        # question_pred_ = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=self.VOCAB_SIZE,
+        #                                                                             activation='softmax'),
+        #                                                 name='ques_word_classifier_')(inputs=question_features)
 
         attention = tf.keras.layers.TimeDistributed(layer=tf.keras.layers.Dense(units=1),
                                                     name='attention')(inputs=question_features)
@@ -283,15 +283,15 @@ class AttentionShowNTell(VQA_Net):
 
         attention_mul = tf.keras.layers.Multiply(name='attention_mul')(inputs=[attention_weights, question_features])
 
-        last_h = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=1),
-                                        name='context')(inputs=attention_mul)
+        context = tf.keras.layers.Lambda(lambda x: tf.keras.backend.sum(x, axis=1),
+                                         name='context')(inputs=attention_mul)
 
-        question_pred = tf.keras.layers.Lambda(lambda x: x[:, 1:, :],
-                                               name='ques_word_classifier')(inputs=question_pred_)
+        # question_pred = tf.keras.layers.Lambda(lambda x: x[:, 1:, :],
+        #                                        name='ques_word_classifier')(inputs=question_pred_)
 
         answer_fc_1 = tf.keras.layers.Dense(units=1000,
                                             activation='relu',
-                                            name='answer_fc_1')(inputs=last_h)
+                                            name='answer_fc_1')(inputs=context)
 
         answer_fc_2 = tf.keras.layers.Dense(units=1000,
                                             activation='relu',
@@ -314,15 +314,15 @@ class AttentionShowNTell(VQA_Net):
                                                     name='best_ans_repeat10')(inputs=best_ans_repeat10)
 
         self.model = tf.keras.Model(inputs=[image_features, question_input],
-                                    outputs=[question_pred, answer_pred, best_ans_repeat10])
+                                    outputs=[answer_pred, best_ans_repeat10])
 
         losses = {
-            'ques_word_classifier': 'categorical_crossentropy',
+            # 'ques_word_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
             'best_ans_repeat10': dummy
         }
         metrics = {
-            'ques_word_classifier': 'acc',
+            # 'ques_word_classifier': 'acc',
             'answer_classifier': 'acc',
             'best_ans_repeat10': custom_acc,
         }
