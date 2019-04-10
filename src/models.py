@@ -27,7 +27,7 @@ def custom_acc(y_true, y_pred):
     acc = K.minimum(best_pred_count / 3, 1.0)
     return K.mean(acc)
 
-class VQA_Net:
+class VQANet:
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         self.question_embed_dim = question_embed_dim
         self.lstm_dim = lstm_dim
@@ -61,7 +61,9 @@ class VQA_Net:
         return history
 
 
-class ShowNTell_Net(VQA_Net):
+
+
+class ShowNTellNet(VQANet):
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
@@ -73,72 +75,58 @@ class ShowNTell_Net(VQA_Net):
 
     def build(self):
         # with tf.device('/cpu:0'):
-        image_features = Input(shape=(4096,),
+        image_input = Input(shape=(4096,),
                                dtype='float32',
                                name='image_input')
-
         image_embedding = Dense(units=self.question_embed_dim,
                                 activation='relu',
-                                name='image_embedding')(inputs=image_features)
+                                name='image_embedding')(inputs=image_input)
+        image_embedding = Reshape(target_shape=(1, self.question_embed_dim))(inputs=image_embedding)
 
-        reshape_image_embedding = Reshape(target_shape=(1, self.question_embed_dim),
-                                          name='reshape_image_embedding')(inputs=image_embedding)
 
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
                                dtype='int32',
                                name='question_input')
-
-        question_input_masked = Masking(mask_value=0,
-                                        input_shape=(self.MAX_QUESTION_LEN,),
-                                        name='question_input_masked')(inputs=question_input)
-
+        question_input = Masking(mask_value=0,
+                                 input_shape=(self.MAX_QUESTION_LEN,))(inputs=question_input)
         question_embedding = Embedding(input_dim=self.VOCAB_SIZE,
                                        output_dim=self.question_embed_dim,
                                        input_length=self.MAX_QUESTION_LEN,
-                                       name='question_embedding')(inputs=question_input_masked)
+                                       name='question_embedding')(inputs=question_input)
+
 
         image_question_embedding = Concatenate(axis=1,
-                                               name='image_question_embedding')(inputs=[reshape_image_embedding, question_embedding])
-
-        question_features, last_h, _ = LSTM(units=self.lstm_dim,
-                                            return_sequences=True,
-                                            return_state=True,
-                                            name='question_generator')(inputs=image_question_embedding)
-
-        # question_pred_ = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-        #                                                                             activation='softmax'),
-        #                                                 name='ques_word_classifier_')(inputs=question_features)
-
+                                               name='image_question_embedding')(inputs=[image_embedding,
+                                                                                        question_embedding])
+        question_embedding, last_h, _ = LSTM(units=self.lstm_dim,
+                                             return_sequences=True,
+                                             return_state=True,
+                                             name='question_lstm')(inputs=image_question_embedding)
+        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
+        #                                             activation='softmax'))(inputs=question_embedding)
         # question_pred = Lambda(lambda x: x[:, 1:, :],
-        #                                        name='ques_word_classifier')(inputs=question_pred_)
+        #                        name='question_classifier')(inputs=question_pred)
+
 
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_1')(inputs=last_h)
-
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_2')(inputs=answer_fc_1)
-
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             name='answer_classifier')(inputs=answer_fc_2)
 
-        best_ans = Lambda(lambda x: K.argmax(x, axis=-1),
-                          name='best_ans')(inputs=answer_pred)
 
-        best_ans_repeat10 = Reshape(target_shape=(1,),
-                                    name='best_ans_repeat10__')(inputs=best_ans)
+        best_ans = Lambda(lambda x: K.argmax(x, axis=-1))(inputs=answer_pred)
+        best_ans = Reshape(target_shape=(1,))(inputs=best_ans)
+        best_ans = RepeatVector(n=10)(inputs=best_ans)
+        best_ans = Reshape(target_shape=(10,), name='best_ans')(inputs=best_ans)
 
-        best_ans_repeat10 = RepeatVector(n=10,
-                                         name='best_ans_repeat10_')(inputs=best_ans_repeat10)
 
-        best_ans_repeat10 = Reshape(target_shape=(10,),
-                                    name='best_ans_repeat10')(inputs=best_ans_repeat10)
-
-        self.model = Model(inputs=[image_features, question_input],
-                           outputs=[answer_pred, best_ans_repeat10])
-
+        self.model = Model(inputs=[image_input, question_input],
+                           outputs=[answer_pred, best_ans])
         losses = {
             # 'ques_word_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
@@ -149,15 +137,14 @@ class ShowNTell_Net(VQA_Net):
             'answer_classifier': 'acc',
             'best_ans_repeat10': custom_acc,
         }
-
         self.model.compile(loss=losses,
                            optimizer='adam',
                            metrics=metrics)
 
-        print("MODEL METRICS", self.model.metrics_names)
 
 
-class TimeDistributedCNN_Net(VQA_Net):
+
+class TimeDistributedCNNNet(VQANet):
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
@@ -165,80 +152,62 @@ class TimeDistributedCNN_Net(VQA_Net):
                          model_name=model_name,
                          VOCAB_SIZE=VOCAB_SIZE,
                          MAX_QUESTION_LEN=MAX_QUESTION_LEN)
-
         self.build()
 
     def build(self):
         # with tf.device('/cpu:0'):
-        image_features = Input(shape=(4096,),
+        image_input = Input(shape=(4096,),
                                dtype='float32',
                                name='image_input')
-
         image_embedding = Dense(units=self.question_embed_dim,
                                 activation='relu',
-                                name='image_embedding')(inputs=image_features)
+                                name='image_embedding')(inputs=image_input)
+        image_embedding = RepeatVector(n=self.MAX_QUESTION_LEN)(inputs=image_embedding)
 
-        # image_embedding_dropout = Dropout(rate=0.7,
-        #                                            seed=seed,
-        #                                            name='image_embedding_dropout')(inputs=image_embedding)                                       
-
-        repeated_image_embedding = RepeatVector(n=self.MAX_QUESTION_LEN,
-                                                name='repeated_image_embedding')(inputs=image_embedding)
 
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
                                dtype='int32',
                                name='question_input')
-
-        question_input_masked = Masking(mask_value=0,
-                                        input_shape=(self.MAX_QUESTION_LEN,),
-                                        name='question_input_masked')(inputs=question_input)
-
+        question_input= Masking(mask_value=0,
+                                input_shape=(self.MAX_QUESTION_LEN,),
+                                name='question_input')(inputs=question_input)
         question_embedding = Embedding(input_dim=self.VOCAB_SIZE,
                                        output_dim=self.question_embed_dim,
                                        input_length=self.MAX_QUESTION_LEN,
-                                       name='question_embedding')(inputs=question_input_masked)
+                                       name='question_embedding')(inputs=question_input)
+
 
         image_question_embedding = Concatenate(axis=-1,
-                                               name='image_question_embedding')(inputs=[repeated_image_embedding, question_embedding])
+                                               name='image_question_embedding')(inputs=[image_embedding, question_embedding])
+        question_embedding, last_h, _ = LSTM(units=self.lstm_dim,
+                                             return_sequences=True,
+                                             return_state=True,
+                                             name='question_lstm')(inputs=image_question_embedding)
+        question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE, activation='softmax'),
+                                        name='question_classifier')(inputs=question_embedding)
 
-        question_features, last_h, _ = LSTM(units=self.lstm_dim,
-                                            return_sequences=True,
-                                            return_state=True,
-                                            name='question_generator')(inputs=image_question_embedding)
-
-        question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-                                                                                    activation='softmax'),
-                                        name='question_word_classifier')(inputs=question_features)
 
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_1')(inputs=last_h)
-
-        # answer_dropout_1 = Dropout(rate=0.7,
-        #                                            seed=seed,
-        #                                            name='answer_dropout_1')(inputs=answer_fc_1)
-
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_2')(inputs=answer_fc_1)
-
-        # answer_dropout_2 = Dropout(rate=0.7,
-        #                                            seed=seed,
-        #                                            name='answer_dropout_2')(inputs=answer_fc_2)
-
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             name='answer_classifier')(inputs=answer_fc_2)
 
-        self.model = Model(inputs=[image_features, question_input],
-                           outputs=[question_pred, answer_pred])
 
+        self.model = Model(inputs=[image_input, question_input],
+                           outputs=[question_pred, answer_pred])
         self.model.compile(loss='categorical_crossentropy',
                            optimizer='adam',
                            metrics=['accuracy'])
 
 
-class QuesAttentionShowNTell_Net(VQA_Net):
+
+
+class QuesAttentionShowNTellNet(VQANet):
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
@@ -250,82 +219,63 @@ class QuesAttentionShowNTell_Net(VQA_Net):
 
     def build(self):
         # with tf.device('/cpu:0'):
-        image_features = Input(shape=(4096,),
-                               dtype='float32',
-                               name='image_input')
-
+        image_input = Input(shape=(4096,),
+                            dtype='float32',
+                            name='image_input')
         image_embedding = Dense(units=self.question_embed_dim,
                                 activation='relu',
-                                name='image_embedding')(inputs=image_features)
+                                name='image_embedding')(inputs=image_input)
+        image_embedding = Reshape(target_shape=(1, self.question_embed_dim))(inputs=image_embedding)
 
-        reshape_image_embedding = Reshape(target_shape=(1, self.question_embed_dim),
-                                          name='reshape_image_embedding')(inputs=image_embedding)
 
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
                                dtype='int32',
                                name='question_input')
-
-        question_input_masked = Masking(mask_value=0,
-                                        input_shape=(self.MAX_QUESTION_LEN,),
-                                        name='question_input_masked')(inputs=question_input)
-
+        question_input = Masking(mask_value=0,
+                                 input_shape=(self.MAX_QUESTION_LEN,))(inputs=question_input)
         question_embedding = Embedding(input_dim=self.VOCAB_SIZE,
                                        output_dim=self.question_embed_dim,
                                        input_length=self.MAX_QUESTION_LEN,
-                                       name='question_embedding')(inputs=question_input_masked)
+                                       name='question_embedding')(inputs=question_input)
+
 
         image_question_embedding = Concatenate(axis=1,
-                                               name='image_question_embedding')(inputs=[reshape_image_embedding, question_embedding])
+                                               name='image_question_embedding')(inputs=[image_embedding,
+                                                                                        question_embedding])
+        question_embedding = LSTM(units=self.lstm_dim,
+                                  return_sequences=True,
+                                  name='question_lstm')(inputs=image_question_embedding)
+        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE, activation='softmax'),
+        #                                 name='question_classifier')(inputs=question_embedding)
 
-        question_features = LSTM(units=self.lstm_dim,
-                                 return_sequences=True,
-                                 name='question_generator')(inputs=image_question_embedding)
 
-        # question_pred_ = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-        #                                                                             activation='softmax'),
-        #                                                 name='ques_word_classifier_')(inputs=question_features)
-
-        attention = TimeDistributed(layer=Dense(units=1),
-                                    name='attention')(inputs=question_features)
-
+        attention_weights = TimeDistributed(layer=Dense(units=1),
+                                            name='attention')(inputs=question_embedding)
         attention_weights = Lambda(lambda x: softmax(x, axis=1),
-                                   name='attention_softmax')(inputs=attention)
+                                   name='attention_softmax')(inputs=attention_weights)
+        attention_mul = Multiply()(inputs=[attention_weights, question_embedding])
+        context = Lambda(lambda x: K.sum(x, axis=1), name='context')(inputs=attention_mul)
 
-        attention_mul = Multiply(name='attention_mul')(inputs=[attention_weights, question_features])
-
-        context = Lambda(lambda x: K.sum(x, axis=1),
-                         name='context')(inputs=attention_mul)
-
-        # question_pred = Lambda(lambda x: x[:, 1:, :],
-        #                                        name='ques_word_classifier')(inputs=question_pred_)
 
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_1')(inputs=context)
-
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_2')(inputs=answer_fc_1)
-
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             name='answer_classifier')(inputs=answer_fc_2)
 
-        best_ans = Lambda(lambda x: K.argmax(x, axis=-1),
-                          name='best_ans')(inputs=answer_pred)
 
-        best_ans_repeat10 = Reshape(target_shape=(1,),
-                                    name='best_ans_repeat10__')(inputs=best_ans)
+        best_ans = Lambda(lambda x: K.argmax(x, axis=-1))(inputs=answer_pred)
+        best_ans = Reshape(target_shape=(1,))(inputs=best_ans)
+        best_ans = RepeatVector(n=10,)(inputs=best_ans)
+        best_ans = Reshape(target_shape=(10,))(inputs=best_ans)
 
-        best_ans_repeat10 = RepeatVector(n=10,
-                                         name='best_ans_repeat10_')(inputs=best_ans_repeat10)
 
-        best_ans_repeat10 = Reshape(target_shape=(10,),
-                                    name='best_ans_repeat10')(inputs=best_ans_repeat10)
-
-        self.model = Model(inputs=[image_features, question_input],
-                           outputs=[answer_pred, best_ans_repeat10])
-
+        self.model = Model(inputs=[image_input, question_input],
+                           outputs=[answer_pred, best_ans])
         losses = {
             # 'ques_word_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
@@ -336,15 +286,14 @@ class QuesAttentionShowNTell_Net(VQA_Net):
             'answer_classifier': 'acc',
             'best_ans_repeat10': custom_acc,
         }
-
         self.model.compile(loss=losses,
                            optimizer='adam',
                            metrics=metrics)
 
-        print("MODEL METRICS", self.model.metrics_names)
 
 
-class ImgQuesAttention_Net(VQA_Net):
+
+class ImgQuesAttentionNet(VQANet):
     def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
@@ -356,82 +305,63 @@ class ImgQuesAttention_Net(VQA_Net):
 
     def build(self):
         # with tf.device('/cpu:0'):
-        image_features = Input(shape=(4096,),
-                               dtype='float32',
-                               name='image_input')
-
+        image_input = Input(shape=(4096,),
+                            dtype='float32',
+                            name='image_input')
         image_embedding = Dense(units=self.question_embed_dim,
                                 activation='relu',
-                                name='image_embedding')(inputs=image_features)
+                                name='image_embedding')(inputs=image_input)
+        image_embedding = Reshape(target_shape=(1, self.question_embed_dim))(inputs=image_embedding)
 
-        reshape_image_embedding = Reshape(target_shape=(1, self.question_embed_dim),
-                                          name='reshape_image_embedding')(inputs=image_embedding)
 
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
                                dtype='int32',
                                name='question_input')
-
-        question_input_masked = Masking(mask_value=0,
-                                        input_shape=(self.MAX_QUESTION_LEN,),
-                                        name='question_input_masked')(inputs=question_input)
-
+        question_input = Masking(mask_value=0,
+                                 input_shape=(self.MAX_QUESTION_LEN,))(inputs=question_input)
         question_embedding = Embedding(input_dim=self.VOCAB_SIZE,
                                        output_dim=self.question_embed_dim,
                                        input_length=self.MAX_QUESTION_LEN,
-                                       name='question_embedding')(inputs=question_input_masked)
+                                       name='question_embedding')(inputs=question_input)
+
 
         image_question_embedding = Concatenate(axis=1,
-                                               name='image_question_embedding')(inputs=[reshape_image_embedding, question_embedding])
+                                               name='image_question_embedding')(inputs=[image_embedding,
+                                                                                        question_embedding])
+        question_embedding = LSTM(units=self.lstm_dim,
+                                  return_sequences=True,
+                                  name='question_lstm')(inputs=image_question_embedding)
+        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE, activation='softmax'),
+        #                                 name='question_classifier')(inputs=question_embedding)
 
-        question_features = LSTM(units=self.lstm_dim,
-                                 return_sequences=True,
-                                 name='question_generator')(inputs=image_question_embedding)
 
-        # question_pred_ = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-        #                                                                             activation='softmax'),
-        #                                                 name='ques_word_classifier_')(inputs=question_features)
-
-        attention = TimeDistributed(layer=Dense(units=1),
-                                    name='attention')(inputs=question_features)
-
+        attention_weights = TimeDistributed(layer=Dense(units=1),
+                                            name='attention')(inputs=question_embedding)
         attention_weights = Lambda(lambda x: softmax(x, axis=1),
-                                   name='attention_softmax')(inputs=attention)
+                                   name='attention_softmax')(inputs=attention_weights)
+        attention_mul = Multiply()(inputs=[attention_weights, question_embedding])
+        context = Lambda(lambda x: K.sum(x, axis=1), name='context')(inputs=attention_mul)
 
-        attention_mul = Multiply(name='attention_mul')(inputs=[attention_weights, question_features])
-
-        context = Lambda(lambda x: K.sum(x, axis=1),
-                         name='context')(inputs=attention_mul)
-
-        # question_pred = Lambda(lambda x: x[:, 1:, :],
-        #                                        name='ques_word_classifier')(inputs=question_pred_)
 
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_1')(inputs=context)
-
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_2')(inputs=answer_fc_1)
-
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             name='answer_classifier')(inputs=answer_fc_2)
 
-        best_ans = Lambda(lambda x: K.argmax(x, axis=-1),
-                          name='best_ans')(inputs=answer_pred)
 
-        best_ans_repeat10 = Reshape(target_shape=(1,),
-                                    name='best_ans_repeat10__')(inputs=best_ans)
+        best_ans = Lambda(lambda x: K.argmax(x, axis=-1))(inputs=answer_pred)
+        best_ans = Reshape(target_shape=(1,))(inputs=best_ans)
+        best_ans = RepeatVector(n=10, )(inputs=best_ans)
+        best_ans = Reshape(target_shape=(10,))(inputs=best_ans)
 
-        best_ans_repeat10 = RepeatVector(n=10,
-                                         name='best_ans_repeat10_')(inputs=best_ans_repeat10)
 
-        best_ans_repeat10 = Reshape(target_shape=(10,),
-                                    name='best_ans_repeat10')(inputs=best_ans_repeat10)
-
-        self.model = Model(inputs=[image_features, question_input],
-                           outputs=[answer_pred, best_ans_repeat10])
-
+        self.model = Model(inputs=[image_input, question_input],
+                           outputs=[answer_pred, best_ans])
         losses = {
             # 'ques_word_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
@@ -442,9 +372,6 @@ class ImgQuesAttention_Net(VQA_Net):
             'answer_classifier': 'acc',
             'best_ans_repeat10': custom_acc,
         }
-
         self.model.compile(loss=losses,
                            optimizer='adam',
                            metrics=metrics)
-
-        print("MODEL METRICS", self.model.metrics_names)
