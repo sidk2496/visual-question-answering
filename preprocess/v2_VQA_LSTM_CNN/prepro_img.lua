@@ -84,7 +84,7 @@ for i=1,sz,batch_size do
         ims[j]=loadim(train_list[i+j-1]):cuda()
     end
     net:forward(ims)
-    feat_train[{{i,r},{}}]=net.modules[43].output:clone()
+    feat_train[{{i,r},{}}]=net.modules[37].output:clone()
     collectgarbage()
 end
 
@@ -100,7 +100,7 @@ for i=1,sz,batch_size do
         ims[j]=loadim(test_list[i+j-1]):cuda()
     end
     net:forward(ims)
-    feat_test[{{i,r},{}}]=net.modules[43].output:clone()
+    feat_test[{{i,r},{}}]=net.modules[37].output:clone()
     collectgarbage()
 end
 

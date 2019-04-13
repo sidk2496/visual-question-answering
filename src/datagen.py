@@ -8,7 +8,8 @@ tf.set_random_seed(seed)
 
 class DataGenerator(tf.keras.utils.Sequence):
     # Initialize generator
-    def __init__(self, img_feat, questions, answers, ques_to_img, VOCAB_SIZE, n_answers, batch_size=32, shuffle=True):
+    def __init__(self, img_feat, questions, answers, ques_to_img, VOCAB_SIZE, n_answers,
+                 batch_size=32, split='train', shuffle=True):
         self.img_feat = img_feat
         self.questions = questions
         self.answers = answers
@@ -18,6 +19,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.n_data = questions.shape[0]
+        self.split = split
         self.on_epoch_end()
 
     def __len__(self):
@@ -41,9 +43,14 @@ class DataGenerator(tf.keras.utils.Sequence):
         X_ques = self.questions[indices, :-1]
         ques_to_img = self.ques_to_img[indices] - 1
         X_img = self.img_feat[ques_to_img]
-        y_ques = tf.keras.utils.to_categorical(y=self.questions[indices, 1:],
-                                               num_classes=self.VOCAB_SIZE)
-        y_ans_best = tf.keras.utils.to_categorical(y=self.answers[indices, 0] - 1,
-                                              num_classes=self.n_answers)
-        y_ans_top_10 = self.answers[indices, 1:] - 1
-        return [X_img, X_ques], [y_ans_best, y_ans_top_10]
+        if self.split in ['train', 'val']:
+            y_ques = tf.keras.utils.to_categorical(y=self.questions[indices, 1:],
+                                                   num_classes=self.VOCAB_SIZE)
+            y_ans_best = tf.keras.utils.to_categorical(y=self.answers[indices, 0] - 1,
+                                                  num_classes=self.n_answers)
+            y_ans_top_10 = self.answers[indices, 1:] - 1
+            return [X_img, X_ques], [y_ques, y_ans_best, y_ans_top_10]
+        elif self.split == 'test':
+            return [X_img, X_ques], []
+        else:
+            raise AssertionError

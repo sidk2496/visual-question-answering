@@ -108,7 +108,8 @@ def main():
                                   VOCAB_SIZE=VOCAB_SIZE,
                                   n_answers=n_answers,
                                   batch_size=batch_size,
-                                  shuffle=True)
+                                  shuffle=True,
+                                  split='train')
 
     # Validation data generator
     val_datagen = DataGenerator(img_feat=np.array(img_feat['images_train']),
@@ -118,15 +119,17 @@ def main():
                                 VOCAB_SIZE=VOCAB_SIZE,
                                 n_answers=n_answers,
                                 batch_size=batch_size,
-                                shuffle=True)
+                                shuffle=True,
+                                split='val')
+
     print("Created generators!")
 
     print("Defining  model...")
     # Define model
-    model = ShowNTell_Net(question_embed_dim=question_embed_dim,
+    model = ImgQuesAttentionNet(question_embed_dim=question_embed_dim,
                           lstm_dim=lstm_dim,
                           n_answers=n_answers,
-                          model_name='../models/show_n_tell.h5',
+                          model_name='../models/img_ques_attention.h5',
                           VOCAB_SIZE=VOCAB_SIZE,
                           MAX_QUESTION_LEN=MAX_QUESTION_LEN)
 

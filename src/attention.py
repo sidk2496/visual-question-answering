@@ -4,6 +4,32 @@ from tensorflow.python.keras.layers import Layer
 from tensorflow.python.keras import backend as K
 
 
+class Attention(Layer):
+    def __init__(self, output_dim, **kwargs):
+        self.output_dim = output_dim
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.A = self.add_weight(name='attention',
+                                 shape=(input_shape[1][0], input_shape[0][0]),
+                                 initializer='glorot_uniform',
+                                 trainable=True)
+        super().build(input_shape=input_shape)
+
+    def call(self, inputs, **kwargs):
+        encoder = inputs[0]  # shape: (batch, timesteps, feat_dim)
+        decoder = inputs[1]  # shape: (batch, timesteps, feat_dim)
+        attention_weights = K.dot(K.dot(decoder, self.A), K.transpose(encoder))
+        attention_weights = K.softmax(attention_weights, axis=-1)
+        return K.dot(attention_weights, encoder)
+
+
+
+
+
+
+
+
 class AttentionLayer(Layer):
     """
     This class implements Bahdanau attention (https://arxiv.org/pdf/1409.0473.pdf).
