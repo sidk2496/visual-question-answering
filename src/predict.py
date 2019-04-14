@@ -41,19 +41,9 @@ def main(args):
 
     ix_to_ans = prepro_data['ix_to_ans']
     question_ids = np.array(qa_data['question_id_test']).tolist()
+    n_test = len(question_ids)
 
-    # Test data generator
-    test_datagen = DataGenerator(img_feat=np.array(img_feat['images_test']),
-                                 questions=questions,
-                                 answers=[],
-                                 ques_to_img=ques_to_img,
-                                 VOCAB_SIZE=VOCAB_SIZE,
-                                 n_answers=n_answers,
-                                 batch_size=args.batch_size,
-                                 shuffle=False,
-                                 split='test')
-    print("Created generators!")
-
+    # Load appropriate model
     if args.model_type == 'img_ques_attention':
         model = ImgQuesAttentionNet(lstm_dim=lstm_dim,
                                     n_answers=n_answers,
@@ -68,9 +58,30 @@ def main(args):
                              VOCAB_SIZE=VOCAB_SIZE,
                              MAX_QUESTION_LEN=MAX_QUESTION_LEN,
                              question_embed_dim=question_embed_dim)
-
     model.load_weights(weights_filename=args.model_path)
-    y_pred = model.predict(test_data=test_datagen)
+
+    chunk_size = 30000
+    y_pred = np.zeros(n_test)
+    n_chunks = len(range(0, n_test, chunk_size))
+    for i, batch in enumerate(range(0, n_test, chunk_size)):
+        begin = batch
+        end = min(n_test, batch + chunk_size)
+        # Test data generator
+        test_datagen = DataGenerator(img_feat=np.array(img_feat['images_test']),
+                                     questions=questions[begin: end],
+                                     answers=[],
+                                     ques_to_img=ques_to_img[begin: end],
+                                     VOCAB_SIZE=VOCAB_SIZE,
+                                     n_answers=n_answers,
+                                     batch_size=args.batch_size,
+                                     shuffle=False,
+                                     split='test')
+        y_pred_chunk = model.predict(test_data=test_datagen)
+        if i + 1 % 50 == 0:
+            print("Completed testing on {}/{} chunks...".format(i + 1, n_chunks))
+        y_pred[begin: end] = y_pred_chunk
+
+
     write_predictions(filepath=args.dest_path,
                       y_pred=y_pred,
                       ix_to_ans=ix_to_ans,
@@ -80,7 +91,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_type', type=str, choices=['img_ques_attention', 'show_n_tell'], help='type of model')
-    parser.add_argument('--mod  el_path', type=str, default='../models/model.h5', help='path to model file')
+    parser.add_argument('--model_path', type=str, default='../models/model.h5', help='path to model file')
     parser.add_argument('--data_path', type=str, default='../data/', help='path to input data')
     parser.add_argument('--dest_path', type=str, help='prediciton file full path (without the file extension)')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size to use for testing')

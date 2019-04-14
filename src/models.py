@@ -64,7 +64,9 @@ class VQANet:
 
     def predict(self, test_data):
         _, y_pred, _ = self.model.predict_generator(generator=test_data,
-                                                 verbose=1)
+                                                    use_multiprocessing=False,
+                                                    workers=cpu_count(),
+                                                    verbose=1)
         return np.argmax(y_pred, axis=-1) + 1
 
 
@@ -331,13 +333,11 @@ class ImgQuesAttentionNet(VQANet):
 
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
                                                       return_sequences=True,
-                                                      kernel_regularizer=l2(0.001),
-                                                      dropout=0.5),
+                                                      kernel_regularizer=l2(0.001)),
                                            name='question_lstm_1')(inputs=question_embedding)
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
                                                       return_sequences=True,
-                                                      kernel_regularizer=l2(0.001),
-                                                      dropout=0.5),
+                                                      kernel_regularizer=l2(0.001)),
                                            name='question_lstm_2')(inputs=question_embedding)
 
 
@@ -361,11 +361,11 @@ class ImgQuesAttentionNet(VQANet):
         qa_attention_weights = TimeDistributed(layer=Dense(units=1000,
                                                            activation='relu',
                                                            kernel_regularizer=l2(0.001)))(inputs=vq_context_question_embedding)
-        qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
+        # qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
         qa_attention_weights = TimeDistributed(layer=Dense(units=256,
                                                            activation='relu',
                                                            kernel_regularizer=l2(0.001)))(inputs=qa_attention_weights)
-        qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
+        # qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
         qa_attention_weights = TimeDistributed(layer=Dense(units=1,
                                                            kernel_regularizer=l2(0.001)))(inputs=qa_attention_weights)
         qa_attention_weights = Lambda(lambda x: softmax(x, axis=1),
@@ -378,12 +378,12 @@ class ImgQuesAttentionNet(VQANet):
                             activation='relu',
                             kernel_regularizer=l2(0.001),
                             name='answer_fc_1')(inputs=qa_context)
-        answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
+        # answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
                             kernel_regularizer=l2(0.001),
                             name='answer_fc_2')(inputs=answer_fc_1)
-        answer_fc_2 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_2)
+        # answer_fc_2 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_2)
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             kernel_regularizer=l2(0.001),
@@ -410,7 +410,7 @@ class ImgQuesAttentionNet(VQANet):
             'best_ans': custom_acc,
         }
         self.model.compile(loss=losses,
-                           optimizer=optimizers.adam(lr=0.01),
+                           optimizer='adam',
                            metrics=metrics)
 
         print(self.model.metrics_names)
