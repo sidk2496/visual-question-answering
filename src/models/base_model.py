@@ -6,6 +6,7 @@ tf.set_random_seed(seed)
 
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.callbacks import ModelCheckpoint, TensorBoard
+from tensorflow.python.keras.applications.vgg19 import VGG19
 from multiprocessing import cpu_count
 
 
@@ -22,24 +23,32 @@ def custom_acc(y_true, y_pred):
 
 
 class VQANet:
-    def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
-        self.question_embed_dim = question_embed_dim
+    def __init__(self, lstm_dim, n_answers, question_embed_dim, VOCAB_SIZE, MAX_QUESTION_LEN, log_path, model_path):
         self.lstm_dim = lstm_dim
         self.n_answers = n_answers
-        self.model_name = model_name
+        self.question_embed_dim = question_embed_dim
         self.VOCAB_SIZE = VOCAB_SIZE
         self.MAX_QUESTION_LEN = MAX_QUESTION_LEN
+        self.log_path = log_path
+        self.model_path = model_path
+        self.CNN = VGG19(include_top=True,
+                         weights='imagenet',
+                         input_tensor=None,
+                         input_shape=None,
+                         pooling=None,
+                         classes=1000)
+
 
     def load_weights(self, weights_filename):
         self.model.load_weights(weights_filename)
 
     def train(self, train_data, val_data, batch_size=32, epochs=10):
-        checkpoint = ModelCheckpoint(self.model_name,
+        checkpoint = ModelCheckpoint(self.model_path + '.h5',
                                      monitor='val_best_ans_custom_acc',
                                      save_best_only=True,
                                      verbose=2)
 
-        tensorboard = TensorBoard(log_dir='../train_log',
+        tensorboard = TensorBoard(log_dir=self.log_path,
                                   write_graph=True,
                                   batch_size=batch_size)
 
@@ -56,7 +65,7 @@ class VQANet:
 
     def predict(self, test_data):
         y_pred, _ = self.model.predict_generator(generator=test_data,
-                                                    use_multiprocessing=False,
-                                                    workers=cpu_count(),
-                                                    verbose=0)
+                                                 use_multiprocessing=False,
+                                                 workers=cpu_count(),
+                                                 verbose=0)
         return np.argmax(y_pred, axis=-1) + 1

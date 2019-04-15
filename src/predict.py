@@ -47,7 +47,7 @@ def main(args):
     question_ids = np.array(qa_data['question_id_test']).tolist()
     n_test = len(question_ids)
 
-    # Load appropriate model
+    # Define appropriate model
     if args.model_type == 'img_ques_attention':
         model = ImgQuesAttentionNet(lstm_dim=lstm_dim,
                                     n_answers=n_answers,
