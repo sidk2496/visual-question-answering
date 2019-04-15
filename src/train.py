@@ -10,7 +10,9 @@ import pickle
 import json
 import sys
 
-from models import *
+from models.show_n_tell import ShowNTellNet
+from models.ques_attention import QuesAttentionShowNTellNet
+from models.img_ques_attention import ImgQuesAttentionNet
 from datagen import *
 from sklearn.model_selection import train_test_split
 
