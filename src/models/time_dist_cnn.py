@@ -10,11 +10,12 @@ from tensorflow.python.keras import Model
 
 
 class TimeDistributedCNNNet(VQANet):
-    def __init__(self, lstm_dim, n_answers, model_name, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
+    def __init__(self, lstm_dim, n_answers, model_path, log_path, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
                          n_answers=n_answers,
-                         model_name=model_name,
+                         model_path=model_path,
+                         log_path=log_path,
                          VOCAB_SIZE=VOCAB_SIZE,
                          MAX_QUESTION_LEN=MAX_QUESTION_LEN)
         self.build()

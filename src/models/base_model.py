@@ -31,7 +31,7 @@ class VQANet:
         self.MAX_QUESTION_LEN = MAX_QUESTION_LEN
         self.log_path = log_path
         self.model_path = model_path
-        self.CNN = VGG19(include_top=True,
+        self.cnn = VGG19(include_top=True,
                          weights='imagenet',
                          input_tensor=None,
                          input_shape=None,

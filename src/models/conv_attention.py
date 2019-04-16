@@ -8,12 +8,13 @@ from models.base_model import VQANet, dummy, custom_acc
 from tensorflow.python.keras.layers import *
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import Model
-from tensorflow.python.keras.activations import softmax
 from tensorflow.python.keras.regularizers import l2
+from tensorflow.python.keras.activations import softmax
 
 
-class ImgQuesAttentionNet(VQANet):
-    def __init__(self, lstm_dim, n_answers, model_path, log_path, VOCAB_SIZE, MAX_QUESTION_LEN, question_embed_dim=None):
+class ConvAttentionNet(VQANet):
+    def __init__(self, lstm_dim, n_answers, model_path, log_path, VOCAB_SIZE, MAX_QUESTION_LEN,
+                 question_embed_dim):
         super().__init__(question_embed_dim=question_embed_dim,
                          lstm_dim=lstm_dim,
                          n_answers=n_answers,
@@ -24,25 +25,20 @@ class ImgQuesAttentionNet(VQANet):
         self.build()
 
     def build(self):
-        # with tf.device('/cpu:0'):
-        image_input = Input(shape=(512, 7, 7),
-                            dtype='float32',
-                            name='image_input')
-        image_feat = Reshape(target_shape=(512, 49))(inputs=image_input)
-        image_feat = Permute(dims=(2, 1))(inputs=image_feat)
-
-
+        # input
+        image_input = self.cnn.layers[0]
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
                                dtype='int32',
                                name='question_input')
         question_input_masked = Masking(mask_value=0,
-                                 input_shape=(self.MAX_QUESTION_LEN,))(inputs=question_input)
+                                        input_shape=(self.MAX_QUESTION_LEN,))(inputs=question_input)
+
+
+        # lstm question embeddings
         question_embedding = Embedding(input_dim=self.VOCAB_SIZE,
                                        output_dim=self.question_embed_dim,
                                        input_length=self.MAX_QUESTION_LEN,
                                        name='question_embedding')(inputs=question_input_masked)
-
-
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
                                                       return_sequences=True,
                                                       kernel_regularizer=l2(0.001)),
@@ -53,23 +49,19 @@ class ImgQuesAttentionNet(VQANet):
                                            name='question_lstm_2')(inputs=question_embedding)
 
 
-        vq_attention_weights = TimeDistributed(layer=Dense(units=2 * self.lstm_dim,
-                                                           kernel_regularizer=l2(0.001)))(inputs=image_feat)
-        vq_attention_weights = Lambda(lambda x: K.batch_dot(*x, axes=[2, 2]))(inputs=[question_embedding,
-                                                                                      vq_attention_weights])
-        vq_attention_weights = Lambda(lambda x: softmax(x, axis=-1),
-                                      name='vq_attention_weights')(inputs=vq_attention_weights)
-        vq_context = Lambda(lambda x: K.batch_dot(*x, axes=[2, 1]),
-                            name='vq_context')(inputs=[vq_attention_weights, image_feat])
+
+        # attended CNN features
+        vq_context = Context()(inputs=[self.cnn.layers[16].output, question_embedding]) # shape: (batch, timesteps, last_conv_depth)
         vq_context_question_embedding = Concatenate(axis=-1)(inputs=[vq_context, question_embedding])
 
 
-        question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-                                                    activation='softmax',
-                                                    kernel_regularizer=l2(0.001)),
-                                        name='question_classifier')(inputs=vq_context_question_embedding)
+        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
+        #                                             activation='softmax',
+        #                                             kernel_regularizer=l2(0.001)),
+        #                                 name='question_classifier')(inputs=vq_context_question_embedding)
 
 
+        # question-answer attention
         qa_attention_weights = TimeDistributed(layer=Dense(units=1000,
                                                            activation='relu',
                                                            kernel_regularizer=l2(0.001)))(inputs=vq_context_question_embedding)
@@ -86,6 +78,7 @@ class ImgQuesAttentionNet(VQANet):
         qa_context = Reshape(target_shape=(2 * self.lstm_dim + 512,))(inputs=qa_context)
 
 
+        # answer classification
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
                             kernel_regularizer=l2(0.001),
@@ -110,14 +103,14 @@ class ImgQuesAttentionNet(VQANet):
 
 
         self.model = Model(inputs=[image_input, question_input],
-                           outputs=[question_pred, answer_pred, best_ans])
+                           outputs=[answer_pred, best_ans])
         losses = {
-            'question_classifier': 'categorical_crossentropy',
+            # 'question_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
             'best_ans': dummy
         }
         metrics = {
-            'question_classifier': 'acc',
+            # 'question_classifier': 'acc',
             'answer_classifier': 'acc',
             'best_ans': custom_acc,
         }
