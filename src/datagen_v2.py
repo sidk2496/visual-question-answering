@@ -45,7 +45,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         ques_to_img = self.ques_to_img[indices] - 1
         X_img = self.img_feat[ques_to_img]
         if self.extracted:
-            # CAUTION: Check position of channels
+            # TODO: Check position of channels
             X_img = preprocess_input(X_img)
         if self.split in ['train', 'val']:
             y_ques = tf.keras.utils.to_categorical(y=self.questions[indices, 1:],

@@ -10,6 +10,7 @@ from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import Model
 from tensorflow.python.keras.regularizers import l2
 from tensorflow.python.keras.activations import softmax
+from custom_layers import Context
 
 
 class ConvAttentionNet(VQANet):
@@ -41,19 +42,17 @@ class ConvAttentionNet(VQANet):
                                        name='question_embedding')(inputs=question_input_masked)
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
                                                       return_sequences=True,
-                                                      kernel_regularizer=l2(0.001)),
+                                                      kernel_regularizer=l2(0)),
                                            name='question_lstm_1')(inputs=question_embedding)
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
                                                       return_sequences=True,
-                                                      kernel_regularizer=l2(0.001)),
+                                                      kernel_regularizer=l2(0)),
                                            name='question_lstm_2')(inputs=question_embedding)
 
 
-
         # attended CNN features
-        vq_context = Context()(inputs=[self.cnn.layers[16].output, question_embedding]) # shape: (batch, timesteps, last_conv_depth)
+        vq_context = Context(cnn=self.cnn)(inputs=[self.cnn.layers[16].output, question_embedding])
         vq_context_question_embedding = Concatenate(axis=-1)(inputs=[vq_context, question_embedding])
-
 
         # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
         #                                             activation='softmax',
@@ -64,14 +63,14 @@ class ConvAttentionNet(VQANet):
         # question-answer attention
         qa_attention_weights = TimeDistributed(layer=Dense(units=1000,
                                                            activation='relu',
-                                                           kernel_regularizer=l2(0.001)))(inputs=vq_context_question_embedding)
+                                                           kernel_regularizer=l2(0)))(inputs=vq_context_question_embedding)
         # qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
         qa_attention_weights = TimeDistributed(layer=Dense(units=256,
                                                            activation='relu',
-                                                           kernel_regularizer=l2(0.001)))(inputs=qa_attention_weights)
+                                                           kernel_regularizer=l2(0)))(inputs=qa_attention_weights)
         # qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
         qa_attention_weights = TimeDistributed(layer=Dense(units=1,
-                                                           kernel_regularizer=l2(0.001)))(inputs=qa_attention_weights)
+                                                           kernel_regularizer=l2(0)))(inputs=qa_attention_weights)
         qa_attention_weights = Lambda(lambda x: softmax(x, axis=1),
                                       name='qa_attention_weights')(inputs=qa_attention_weights)
         qa_context = Dot(axes=1)(inputs=[qa_attention_weights, vq_context_question_embedding])
@@ -79,20 +78,20 @@ class ConvAttentionNet(VQANet):
 
 
         # answer classification
-        answer_fc_1 = Dense(units=1000,
-                            activation='relu',
-                            kernel_regularizer=l2(0.001),
-                            name='answer_fc_1')(inputs=qa_context)
+        # answer_fc_1 = Dense(units=1000,
+        #                     activation='relu',
+        #                     kernel_regularizer=l2(0.001),
+        #                     name='answer_fc_1')(inputs=qa_context)
         # answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
-        answer_fc_2 = Dense(units=1000,
-                            activation='relu',
-                            kernel_regularizer=l2(0.001),
-                            name='answer_fc_2')(inputs=answer_fc_1)
+        # answer_fc_2 = Dense(units=1000,
+        #                     activation='relu',
+        #                     kernel_regularizer=l2(0.001),
+        #                     name='answer_fc_2')(inputs=answer_fc_1)
         # answer_fc_2 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_2)
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
-                            kernel_regularizer=l2(0.001),
-                            name='answer_classifier')(inputs=answer_fc_2)
+                            kernel_regularizer=l2(0),
+                            name='answer_classifier')(inputs=qa_context)
 
 
         best_ans = Lambda(lambda x: K.argmax(x, axis=-1))(inputs=answer_pred)

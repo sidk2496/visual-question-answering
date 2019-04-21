@@ -44,7 +44,7 @@ def main(args):
     else:
         img_feat = [load_img(os.path.join(args.data_path, image_filename))
                     for image_filename in prepro_data['unique_img_train']]
-        img_feat = [img_to_array(image, dtype='uint8') for image in img_feat]
+        img_feat = [img_to_array(image, dtype='uint8', data_format='channels_first') for image in img_feat]
         img_feat = np.array(img_feat, dtype=np.uint8)
 
     # Some preprocessing

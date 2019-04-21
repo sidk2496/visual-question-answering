@@ -46,12 +46,12 @@ class DataGenerator(tf.keras.utils.Sequence):
         X_img = self.img_feat[ques_to_img]
         if self.extracted:
             # CAUTION: Check position of channels
-            X_img = preprocess_input(X_img)
+            X_img = preprocess_input(X_img, data_format='channels_first')
         if self.split in ['train', 'val']:
             y_ques = tf.keras.utils.to_categorical(y=self.questions[indices, 1:],
                                                    num_classes=self.VOCAB_SIZE)
             y_ans_best = tf.keras.utils.to_categorical(y=self.answers[indices, 0] - 1,
-                                                  num_classes=self.n_answers)
+                                                       num_classes=self.n_answers)
             y_ans_top_10 = self.answers[indices, 1:] - 1
             return [X_img, X_ques], [y_ques, y_ans_best, y_ans_top_10]
         elif self.split == 'test':

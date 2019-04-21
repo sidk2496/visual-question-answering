@@ -48,33 +48,75 @@ class SpatialAttention(Layer):
 
 
 
-class ConvAttention(Layer):
+class Context(Layer):
     def __init__(self, cnn):
         self.cnn = cnn
         super().__init__()
 
     def build(self, input_shape):
+
         img_shape, word_embed_shape = input_shape
         self.batch_size, self.depth, self.height, self.width = img_shape
         self.timesteps, self.embed_dim = word_embed_shape[1:]
-        self.conv_layers = self.layers[17:21]
-        for layer in self.conv_layers:
-            self._trainable_weights += layer._trainable_weights
-        self.new_conv_1 = Conv2D(filters=128,
-                                 kernel_size=(3, 3),
-                                 activation='relu',
-                                 padding='same',
-                                 data_format='channels_first')
-        self.new_conv_2 = Conv2D
-        self.
-        super().build(input_shape=input_shape)
 
+        # add vgg19 conv layers
+        self.conv_layers = [TimeDistributed(layer=layer, name='vgg_conv_{}'.format(i + 1))
+                            for i, layer in enumerate(self.cnn.layers[17:21])]
+
+        # add new conv layers
+        self.conv_layers += [TimeDistributed(Conv2D(filters=512,
+                                                    kernel_size=(3, 3),
+                                                    activation='relu',
+                                                    padding='same',
+                                                    data_format='channels_first'),
+                                             name='new_conv_{}'.format(i)) for i in range(1, 3)]
+
+        # add attention layers
+        self.attention_layers = [SpatialAttention(weights_name='attention_{}'.format(i))
+                                 for i in range(1, 7)]
+
+        # add max-pool layers
+        pool_sizes = [(2, 2)] * 2 + [(3, 3)]
+        self.pool_layers = [TimeDistributed(layer=MaxPool2D(pool_size=pool_size), name='pool_{}'.format(i + 1))
+                            for i, pool_size in enumerate(pool_sizes)]
+
+        # build layers
+        input_shapes = [(self.batch_size, self.timesteps, 512, 7, 7),
+                        (self.batch_size, self.timesteps, 512, 3, 3)] + \
+                       [((self.batch_size, self.timesteps, 512, 14, 14), (self.batch_size, self.timesteps, 1024))] * 4 + \
+                       [((self.batch_size, self.timesteps, 512, 7, 7), (self.batch_size, self.timesteps, 1024)),
+                        ((self.batch_size, self.timesteps, 512, 3, 3), (self.batch_size, self.timesteps, 1024)),
+                        (self.batch_size, self.timesteps, 512, 14, 14),
+                        (self.batch_size, self.timesteps, 512, 7, 7),
+                        (self.batch_size, self.timesteps, 512, 3, 3)]
+
+        for (layer, input_shape) in zip(self.conv_layers[-2:] + self.attention_layers + self.pool_layers,
+                                        input_shapes):
+            layer.build(input_shape=input_shape)
+
+        for layer in self.conv_layers + self.attention_layers + self.pool_layers:
+            self._trainable_weights += layer._trainable_weights
+
+        super().build(input_shape=input_shape)
 
     def call(self, inputs, **kwargs):
         img_feat, word_embed = inputs
-        self.cnn.
+        img_feat = K.reshape(img_feat, shape=(self.batch_size, 1, self.depth, self.height, self.width))
+
+        context = img_feat
+        for i in range(3):
+            context = self.conv_layers[i](context)
+            context = self.attention_layers[i]([context, word_embed])
+
+        for i in range(3):
+            context = self.conv_layers[i + 3](context)
+            context = self.attention_layers[i + 3]([context, word_embed])
+            context = self.pool_layers[i](context)
+        
+        return K.reshape(context, shape=(self.batch_size, self.timesteps, 512))
 
     def compute_output_shape(self, input_shape):
+        return self.batch_size, self.timesteps, 512
 
     def get_config(self):
         base_config = super().get_config()
