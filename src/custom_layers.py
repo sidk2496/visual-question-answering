@@ -1,6 +1,6 @@
 import tensorflow as tf
-from tensorflow.python.keras.layers import *
-from tensorflow.python.keras import backend as K
+from keras.layers import *
+from keras import backend as K
 
 
 class SpatialAttention(Layer):
@@ -26,15 +26,15 @@ class SpatialAttention(Layer):
         # b,t,h,w,d_i -> b,t,h,w,d_e
         attention_weights = K.dot(img_feat, self.A)
         # b,t,h,w,d_e -> b,t,h*w,d_e
-        attention_weights = K.reshape(attention_weights, shape=(self.batch_size, self.timesteps,
+        attention_weights = K.reshape(attention_weights, shape=(-1, self.timesteps,
                                                                 self.height * self.width, self.embed_dim))
         # b,t,d_e -> b,t,1,d_e
-        word_embed = K.reshape(word_embed, shape=(self.batch_size, self.timesteps, 1, self.embed_dim))
+        word_embed = K.reshape(word_embed, shape=(-1, self.timesteps, 1, self.embed_dim))
         # b,t,h*w,d_e -> b,t,h*w,1
         attention_weights = K.batch_dot(attention_weights, word_embed, axes=[3, 3])
         attention_weights = K.softmax(attention_weights, axis=-2)
         # b,t,h*w,1 -> b,t,h,w,1
-        attention_weights = K.reshape(attention_weights, shape=(self.batch_size, self.height, self.width, 1))
+        attention_weights = K.reshape(attention_weights, shape=(-1, self.height, self.width, 1))
         attended_img_feat = tf.math.multiply(img_feat, attention_weights)
         # b,t,h,w,d_i -> b,t,d_i,h,w
         return K.permute_dimensions(attended_img_feat, pattern=(0, 1, 4, 2, 3))
@@ -101,19 +101,25 @@ class Context(Layer):
 
     def call(self, inputs, **kwargs):
         img_feat, word_embed = inputs
-        img_feat = K.reshape(img_feat, shape=(self.batch_size, 1, self.depth, self.height, self.width))
+        img_feat = K.reshape(img_feat, shape=(-1, 1, self.depth, self.height, self.width))
+        img_feat = K.repeat_elements(img_feat, rep=self.timesteps, axis=1)
 
         context = img_feat
         for i in range(3):
             context = self.conv_layers[i](context)
+            print(context)
             context = self.attention_layers[i]([context, word_embed])
+            print(context)
 
         for i in range(3):
             context = self.conv_layers[i + 3](context)
+            print(context)
             context = self.attention_layers[i + 3]([context, word_embed])
+            print(context)
             context = self.pool_layers[i](context)
+            print(context)
         
-        return K.reshape(context, shape=(self.batch_size, self.timesteps, 512))
+        return K.reshape(context, shape=(-1, self.timesteps, 512))
 
     def compute_output_shape(self, input_shape):
         return self.batch_size, self.timesteps, 512

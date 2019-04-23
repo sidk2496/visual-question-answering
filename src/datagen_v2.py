@@ -4,7 +4,7 @@ import numpy as np
 np.random.seed(seed)
 import tensorflow as tf
 tf.set_random_seed(seed)
-from tensorflow.python.keras.applications.vgg19 import preprocess_input
+from keras.applications.vgg19 import preprocess_input
 
 class DataGenerator(tf.keras.utils.Sequence):
     # Initialize generator

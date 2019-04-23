@@ -5,11 +5,11 @@ import tensorflow as tf
 tf.set_random_seed(seed)
 
 from models.base_model import VQANet, dummy, custom_acc
-from tensorflow.python.keras.layers import *
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.activations import softmax
-from tensorflow.python.keras.regularizers import l2
+from keras.layers import *
+from keras import backend as K
+from keras import Model
+from keras.activations import softmax
+from keras.regularizers import l2
 
 
 class ImgQuesAttentionNet(VQANet):

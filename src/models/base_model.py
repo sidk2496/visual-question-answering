@@ -4,9 +4,9 @@ np.random.seed(seed)
 import tensorflow as tf
 tf.set_random_seed(seed)
 
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.callbacks import ModelCheckpoint, TensorBoard
-from tensorflow.python.keras.applications.vgg19 import VGG19
+from keras import backend as K
+from keras.callbacks import ModelCheckpoint, TensorBoard
+from keras.applications.vgg19 import VGG19
 from multiprocessing import cpu_count
 
 
@@ -31,12 +31,14 @@ class VQANet:
         self.MAX_QUESTION_LEN = MAX_QUESTION_LEN
         self.log_path = log_path
         self.model_path = model_path
+        K.set_image_data_format('channels_first')
         self.cnn = VGG19(include_top=True,
                          weights='imagenet',
                          input_tensor=None,
                          input_shape=None,
                          pooling=None,
                          classes=1000)
+        # print(self.cnn.summary())
 
 
     def load_weights(self, weights_filename):

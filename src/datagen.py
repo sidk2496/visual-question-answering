@@ -4,7 +4,7 @@ import numpy as np
 np.random.seed(seed)
 import tensorflow as tf
 tf.set_random_seed(seed)
-from tensorflow.python.keras.applications.vgg19 import preprocess_input
+from keras.applications.vgg19 import preprocess_input
 
 class DataGenerator(tf.keras.utils.Sequence):
     # Initialize generator
@@ -53,7 +53,7 @@ class DataGenerator(tf.keras.utils.Sequence):
             y_ans_best = tf.keras.utils.to_categorical(y=self.answers[indices, 0] - 1,
                                                        num_classes=self.n_answers)
             y_ans_top_10 = self.answers[indices, 1:] - 1
-            return [X_img, X_ques], [y_ques, y_ans_best, y_ans_top_10]
+            return [X_img, X_ques], [y_ans_best, y_ans_top_10]
         elif self.split == 'test':
             return [X_img, X_ques], []
         else:

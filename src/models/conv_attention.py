@@ -5,11 +5,11 @@ import tensorflow as tf
 tf.set_random_seed(seed)
 
 from models.base_model import VQANet, dummy, custom_acc
-from tensorflow.python.keras.layers import *
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.regularizers import l2
-from tensorflow.python.keras.activations import softmax
+from keras.layers import *
+from keras import backend as K
+from keras import Model
+from keras.regularizers import l2
+from keras.activations import softmax
 from custom_layers import Context
 
 
@@ -27,7 +27,13 @@ class ConvAttentionNet(VQANet):
 
     def build(self):
         # input
-        image_input = self.cnn.layers[0]
+        image_input = Input(shape=(3, 224, 224))
+
+        vgg_layer_16 = image_input
+        for i in range(1, 17):
+            vgg_layer_16 = self.cnn.layers[i](vgg_layer_16)
+            self.cnn.layers[i].trainable = False
+
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
                                dtype='int32',
                                name='question_input')
@@ -51,7 +57,7 @@ class ConvAttentionNet(VQANet):
 
 
         # attended CNN features
-        vq_context = Context(cnn=self.cnn)(inputs=[self.cnn.layers[16].output, question_embedding])
+        vq_context = Context(cnn=self.cnn)(inputs=[vgg_layer_16, question_embedding])
         vq_context_question_embedding = Concatenate(axis=-1)(inputs=[vq_context, question_embedding])
 
         # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,

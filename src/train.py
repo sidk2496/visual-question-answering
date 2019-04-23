@@ -12,12 +12,14 @@ import json
 import sys
 
 from sklearn.model_selection import train_test_split
-from tensorflow.python.keras.preprocessing.image import load_img
-from tensorflow.python.keras.preprocessing.image import img_to_array
+from keras.preprocessing.image import load_img
+from keras.preprocessing.image import img_to_array
 
 from models.show_n_tell import ShowNTellNet
 from models.ques_attention import QuesAttentionShowNTellNet
 from models.img_ques_attention import ImgQuesAttentionNet
+from models.conv_attention import ConvAttentionNet
+from PIL import Image
 from datagen import *
 
 import argparse
@@ -25,7 +27,7 @@ import argparse
 
 
 def main(args):
-    # from tensorflow.python.client import device_lib
+    # from client import device_lib
 
     # print(device_lib.list_local_devices())
     # Set parameters for network
@@ -42,7 +44,17 @@ def main(args):
     if args.extracted:
         img_feat = h5.File(os.path.join(args.data_path, "data_img.h5"), "r")
     else:
-        img_feat = [load_img(os.path.join(args.data_path, image_filename))
+        # img_feat = []
+        # n_images = len(prepro_data['unique_img_train'])
+        # for i, image_filename in enumerate(prepro_data['unique_img_train'][:32]):
+        #     img = Image.open(os.path.join(args.data_path, image_filename))
+        #     img_copy = img.copy()
+        #     img_feat.append(img_copy)
+        #     img.close()
+        #     if (i + 1) % 100 == 0:
+        #         print("Loaded {}/{} images...".format(i + 1, n_images), end='\r')
+        # print("Loaded {}/{} images\n".format(i + 1, n_images))
+        img_feat = [load_img(os.path.join(args.data_path, image_filename), target_size=(224, 224))
                     for image_filename in prepro_data['unique_img_train']]
         img_feat = [img_to_array(image, dtype='uint8', data_format='channels_first') for image in img_feat]
         img_feat = np.array(img_feat, dtype=np.uint8)
@@ -116,7 +128,7 @@ def main(args):
     # Create generators for training and validation
     print("\nCreating generators...")
     # Train data generator
-    train_datagen = DataGenerator(img_feat=np.array(img_feat['images_train']),
+    train_datagen = DataGenerator(img_feat=img_feat,
                                   questions=questions_train,
                                   answers=answers_train,
                                   ques_to_img=ques_to_img_train,
@@ -128,7 +140,7 @@ def main(args):
                                   extracted=args.extracted)
 
     # Validation data generator
-    val_datagen = DataGenerator(img_feat=np.array(img_feat['images_train']),
+    val_datagen = DataGenerator(img_feat=img_feat,
                                 questions=questions_val,
                                 answers=answers_val,
                                 ques_to_img=ques_to_img_val,
@@ -146,7 +158,6 @@ def main(args):
     if args.model_type == 'img_ques_attention':
         model = ImgQuesAttentionNet(lstm_dim=lstm_dim,
                                     n_answers=n_answers,
-                                    model_name=os.path.basename(args.model_path),
                                     VOCAB_SIZE=VOCAB_SIZE,
                                     MAX_QUESTION_LEN=MAX_QUESTION_LEN,
                                     question_embed_dim=question_embed_dim,
@@ -155,7 +166,6 @@ def main(args):
     elif args.model_type == 'show_n_tell':
         model = ShowNTellNet(lstm_dim=lstm_dim,
                              n_answers=n_answers,
-                             model_name=os.path.basename(args.model_path),
                              VOCAB_SIZE=VOCAB_SIZE,
                              MAX_QUESTION_LEN=MAX_QUESTION_LEN,
                              question_embed_dim=question_embed_dim,
@@ -164,17 +174,26 @@ def main(args):
     elif args.model_type == 'ques_attention':
         model = QuesAttentionShowNTellNet(lstm_dim=lstm_dim,
                                           n_answers=n_answers,
-                                          model_name=os.path.basename(args.model_path),
                                           VOCAB_SIZE=VOCAB_SIZE,
                                           MAX_QUESTION_LEN=MAX_QUESTION_LEN,
                                           question_embed_dim=question_embed_dim,
                                           log_path=args.log_path,
                                           model_path=args.model_path)
+    elif args.model_type == 'conv_attention':
+        model = ConvAttentionNet(lstm_dim=lstm_dim,
+                                 n_answers=n_answers,
+                                 VOCAB_SIZE=VOCAB_SIZE,
+                                 MAX_QUESTION_LEN=MAX_QUESTION_LEN,
+                                 question_embed_dim=question_embed_dim,
+                                 log_path=args.log_path,
+                                 model_path=args.model_path)
+
     print(model.model.summary())
     print("Model ready!\n")
 
     # Train model
     print("\nStarting training...")
+    print(args.epochs)
     model.train(train_data=train_datagen,
                           val_data=val_datagen,
                           batch_size=args.batch_size,
@@ -188,9 +207,8 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=10, help='number of training epochs')
     parser.add_argument('--data_path', type=str, default='../data/', help='directory for training data')
     parser.add_argument('--model_type', type=str, choices=['img_ques_attention', 'show_n_tell',
-                                                           'ques_attention'], help='type of model to train')
+                                                           'ques_attention', 'conv_attention'], help='type of model to train')
     parser.add_argument('--log_path', type=str, default='../train_log/', help='tensorboard logdir')
     parser.add_argument('--model_path', type=str, default='../models/model', help='model path without file extension')
-    parser.add_argument('--extracted', type=bool, default=True,
-                        help='True for reading extracted features False for reading raw images')
+    parser.add_argument('--extracted', action='store_true', help='True for reading extracted features False for reading raw images')
     main(parser.parse_args())
