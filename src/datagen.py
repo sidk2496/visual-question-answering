@@ -5,8 +5,9 @@ np.random.seed(seed)
 import tensorflow as tf
 tf.set_random_seed(seed)
 from keras.applications.vgg19 import preprocess_input
+from keras.utils import Sequence
 
-class DataGenerator(tf.keras.utils.Sequence):
+class DataGenerator(Sequence):
     # Initialize generator
     def __init__(self, img_feat, questions, answers, ques_to_img, VOCAB_SIZE, n_answers,
                  batch_size=32, split='train', extracted=True, shuffle=True):
@@ -44,7 +45,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         X_ques = self.questions[indices, :-1]
         ques_to_img = self.ques_to_img[indices] - 1
         X_img = self.img_feat[ques_to_img]
-        if self.extracted:
+        if not self.extracted:
             # CAUTION: Check position of channels
             X_img = preprocess_input(X_img, data_format='channels_first')
         if self.split in ['train', 'val']:
@@ -53,7 +54,7 @@ class DataGenerator(tf.keras.utils.Sequence):
             y_ans_best = tf.keras.utils.to_categorical(y=self.answers[indices, 0] - 1,
                                                        num_classes=self.n_answers)
             y_ans_top_10 = self.answers[indices, 1:] - 1
-            return [X_img, X_ques], [y_ans_best, y_ans_top_10]
+            return [X_img, X_ques], [y_ques, y_ans_best, y_ans_top_10]
         elif self.split == 'test':
             return [X_img, X_ques], []
         else:

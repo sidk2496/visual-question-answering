@@ -42,7 +42,7 @@ def main(args):
 
     # Read V data
     if args.extracted:
-        img_feat = h5.File(os.path.join(args.data_path, "data_img.h5"), "r")
+        img_feat = np.array(h5.File(os.path.join(args.data_path, "data_img.h5"), "r")['images_train'])
     else:
         # img_feat = []
         # n_images = len(prepro_data['unique_img_train'])
@@ -193,7 +193,6 @@ def main(args):
 
     # Train model
     print("\nStarting training...")
-    print(args.epochs)
     model.train(train_data=train_datagen,
                           val_data=val_datagen,
                           batch_size=args.batch_size,
