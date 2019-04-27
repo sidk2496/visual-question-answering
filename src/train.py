@@ -19,11 +19,9 @@ from models.show_n_tell import ShowNTellNet
 from models.ques_attention import QuesAttentionShowNTellNet
 from models.img_ques_attention import ImgQuesAttentionNet
 from models.conv_attention import ConvAttentionNet
-from PIL import Image
 from datagen import *
 
 import argparse
-
 
 
 def main(args):
@@ -34,6 +32,10 @@ def main(args):
     question_embed_dim = 256
     lstm_dim = 512
     n_answers = 1001
+
+
+    n_train = 500
+
 
     # Read QA data
     qa_data = h5.File(os.path.join(args.data_path, "data_prepro.h5"), "r")
@@ -46,7 +48,7 @@ def main(args):
     else:
         # img_feat = []
         # n_images = len(prepro_data['unique_img_train'])
-        # for i, image_filename in enumerate(prepro_data['unique_img_train'][:32]):
+        # for i, image_filename in enumerate(prepro_data['unique_img_train'][:n_train]):
         #     img = Image.open(os.path.join(args.data_path, image_filename))
         #     img_copy = img.copy()
         #     img_feat.append(img_copy)
@@ -54,9 +56,9 @@ def main(args):
         #     if (i + 1) % 100 == 0:
         #         print("Loaded {}/{} images...".format(i + 1, n_images), end='\r')
         # print("Loaded {}/{} images\n".format(i + 1, n_images))
-        img_feat = [load_img(os.path.join(args.data_path, image_filename), target_size=(224, 224))
+        print("Loading images...\n")
+        img_feat = [img_to_array(load_img(os.path.join(args.data_path, image_filename), target_size=(224, 224)), dtype='uint8', data_format='channels_first')
                     for image_filename in prepro_data['unique_img_train']]
-        img_feat = [img_to_array(image, dtype='uint8', data_format='channels_first') for image in img_feat]
         img_feat = np.array(img_feat, dtype=np.uint8)
 
     # Some preprocessing
@@ -188,8 +190,13 @@ def main(args):
                                  log_path=args.log_path,
                                  model_path=args.model_path)
 
+
     print(model.model.summary())
     print("Model ready!\n")
+
+    if args.load_model != None:
+        model.load_weights(args.load_model)
+        print("Loaded model weights\n")
 
     # Train model
     print("\nStarting training...")
@@ -208,6 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', type=str, choices=['img_ques_attention', 'show_n_tell',
                                                            'ques_attention', 'conv_attention'], help='type of model to train')
     parser.add_argument('--log_path', type=str, default='../train_log/', help='tensorboard logdir')
-    parser.add_argument('--model_path', type=str, default='../models/model', help='model path without file extension')
+    parser.add_argument('--model_path', type=str, default='../models/model', help='path to save model without file extension')
+    parser.add_argument('--load_model', type=str, default=None, help='path to load model without file extension')
     parser.add_argument('--extracted', action='store_true', help='True for reading extracted features False for reading raw images')
     main(parser.parse_args())
