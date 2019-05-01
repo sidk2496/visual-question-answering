@@ -46,16 +46,6 @@ def main(args):
     if args.extracted:
         img_feat = np.array(h5.File(os.path.join(args.data_path, "data_img.h5"), "r")['images_train'])
     else:
-        # img_feat = []
-        # n_images = len(prepro_data['unique_img_train'])
-        # for i, image_filename in enumerate(prepro_data['unique_img_train'][:n_train]):
-        #     img = Image.open(os.path.join(args.data_path, image_filename))
-        #     img_copy = img.copy()
-        #     img_feat.append(img_copy)
-        #     img.close()
-        #     if (i + 1) % 100 == 0:
-        #         print("Loaded {}/{} images...".format(i + 1, n_images), end='\r')
-        # print("Loaded {}/{} images\n".format(i + 1, n_images))
         print("Loading images...\n")
         img_feat = [img_to_array(load_img(os.path.join(args.data_path, image_filename), target_size=(224, 224)), dtype='uint8', data_format='channels_first')
                     for image_filename in prepro_data['unique_img_train']]
