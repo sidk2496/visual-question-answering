@@ -56,15 +56,16 @@ class ConvAttentionNet(VQANet):
                                            name='question_lstm_2')(inputs=question_embedding)
 
 
+        print(question_embedding)
+
         # attended CNN features
         vq_context = Context(cnn=self.cnn)(inputs=[vgg_layer_16, question_embedding])
         vq_context_question_embedding = Concatenate(axis=-1)(inputs=[vq_context, question_embedding])
 
         # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
         #                                             activation='softmax',
-        #                                             kernel_regularizer=l2(0.001)),
+        #                                             kernel_regularizer=l2(0)),
         #                                 name='question_classifier')(inputs=vq_context_question_embedding)
-
 
         # question-answer attention
         qa_attention_weights = TimeDistributed(layer=Dense(units=1000,
@@ -80,24 +81,26 @@ class ConvAttentionNet(VQANet):
         qa_attention_weights = Lambda(lambda x: softmax(x, axis=1),
                                       name='qa_attention_weights')(inputs=qa_attention_weights)
         qa_context = Dot(axes=1)(inputs=[qa_attention_weights, vq_context_question_embedding])
+
+        print(qa_context)
         qa_context = Reshape(target_shape=(2 * self.lstm_dim + 512,))(inputs=qa_context)
 
 
         # answer classification
-        # answer_fc_1 = Dense(units=1000,
-        #                     activation='relu',
-        #                     kernel_regularizer=l2(0.001),
-        #                     name='answer_fc_1')(inputs=qa_context)
+        answer_fc_1 = Dense(units=1000,
+                            activation='relu',
+                            kernel_regularizer=l2(0.001),
+                            name='answer_fc_1')(inputs=qa_context)
         # answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
-        # answer_fc_2 = Dense(units=1000,
-        #                     activation='relu',
-        #                     kernel_regularizer=l2(0.001),
-        #                     name='answer_fc_2')(inputs=answer_fc_1)
+        answer_fc_2 = Dense(units=1000,
+                            activation='relu',
+                            kernel_regularizer=l2(0.001),
+                            name='answer_fc_2')(inputs=answer_fc_1)
         # answer_fc_2 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_2)
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             kernel_regularizer=l2(0),
-                            name='answer_classifier')(inputs=qa_context)
+                            name='answer_classifier')(inputs=answer_fc_2)
 
 
         best_ans = Lambda(lambda x: K.argmax(x, axis=-1))(inputs=answer_pred)

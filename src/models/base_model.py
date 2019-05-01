@@ -42,7 +42,7 @@ class VQANet:
 
 
     def load_weights(self, weights_filename):
-        self.model.load_weights(weights_filename)
+        self.model.load_weights(weights_filename + ".h5")
 
     def train(self, train_data, val_data, batch_size=32, epochs=10):
         checkpoint = ModelCheckpoint(self.model_path + '.h5',

@@ -34,7 +34,7 @@ class SpatialAttention(Layer):
         attention_weights = K.batch_dot(attention_weights, word_embed, axes=[3, 3])
         attention_weights = K.softmax(attention_weights, axis=-2)
         # b,t,h*w,1 -> b,t,h,w,1
-        attention_weights = K.reshape(attention_weights, shape=(-1, self.height, self.width, 1))
+        attention_weights = K.reshape(attention_weights, shape=(-1, self.timesteps, self.height, self.width, 1))
         attended_img_feat = tf.math.multiply(img_feat, attention_weights)
         # b,t,h,w,d_i -> b,t,d_i,h,w
         return K.permute_dimensions(attended_img_feat, pattern=(0, 1, 4, 2, 3))
@@ -90,6 +90,7 @@ class Context(Layer):
                         (self.batch_size, self.timesteps, 512, 7, 7),
                         (self.batch_size, self.timesteps, 512, 3, 3)]
 
+
         for (layer, input_shape) in zip(self.conv_layers[-2:] + self.attention_layers + self.pool_layers,
                                         input_shapes):
             layer.build(input_shape=input_shape)
@@ -107,17 +108,12 @@ class Context(Layer):
         context = img_feat
         for i in range(3):
             context = self.conv_layers[i](context)
-            print(context)
             context = self.attention_layers[i]([context, word_embed])
-            print(context)
 
         for i in range(3):
             context = self.conv_layers[i + 3](context)
-            print(context)
             context = self.attention_layers[i + 3]([context, word_embed])
-            print(context)
             context = self.pool_layers[i](context)
-            print(context)
         
         return K.reshape(context, shape=(-1, self.timesteps, 512))
 

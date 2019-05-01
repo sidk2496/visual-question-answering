@@ -1,4 +1,4 @@
-seed = 10707    
+seed = 10707
 
 import numpy as np
 np.random.seed(seed)
@@ -54,6 +54,7 @@ class DataGenerator(Sequence):
             y_ans_best = tf.keras.utils.to_categorical(y=self.answers[indices, 0] - 1,
                                                        num_classes=self.n_answers)
             y_ans_top_10 = self.answers[indices, 1:] - 1
+            # np.zeros(shape=(X_img.shape[0], 26, 512)),
             return [X_img, X_ques], [y_ans_best, y_ans_top_10]
         elif self.split == 'test':
             return [X_img, X_ques], []
