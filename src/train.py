@@ -19,6 +19,7 @@ from models.show_n_tell import ShowNTellNet
 from models.ques_attention import QuesAttentionShowNTellNet
 from models.img_ques_attention import ImgQuesAttentionNet
 from models.conv_attention import ConvAttentionNet
+from models.time_dist_cnn import TimeDistributedCNNNet
 from PIL import Image
 from datagen import *
 
@@ -179,6 +180,14 @@ def main(args):
                                           question_embed_dim=question_embed_dim,
                                           log_path=args.log_path,
                                           model_path=args.model_path)
+    elif args.model_type == 'time_dist_cnn':
+        model = TimeDistributedCNNNet(lstm_dim=lstm_dim,
+                                      n_answers=n_answers,
+                                      VOCAB_SIZE=VOCAB_SIZE,
+                                      MAX_QUESTION_LEN=MAX_QUESTION_LEN,
+                                      question_embed_dim=question_embed_dim,
+                                      log_path=args.log_path,
+                                      model_path=args.model_path)
     elif args.model_type == 'conv_attention':
         model = ConvAttentionNet(lstm_dim=lstm_dim,
                                  n_answers=n_answers,
@@ -206,7 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=10, help='number of training epochs')
     parser.add_argument('--data_path', type=str, default='../data/', help='directory for training data')
     parser.add_argument('--model_type', type=str, choices=['img_ques_attention', 'show_n_tell',
-                                                           'ques_attention', 'conv_attention'], help='type of model to train')
+                                                           'ques_attention', 'conv_attention', 'time_dist_cnn'], help='type of model to train')
     parser.add_argument('--log_path', type=str, default='../train_log/', help='tensorboard logdir')
     parser.add_argument('--model_path', type=str, default='../models/model', help='model path without file extension')
     parser.add_argument('--extracted', action='store_true', help='True for reading extracted features False for reading raw images')

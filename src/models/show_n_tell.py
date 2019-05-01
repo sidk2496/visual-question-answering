@@ -52,14 +52,15 @@ class ShowNTellNet(VQANet):
                                                       kernel_regularizer=l2(0.001)),
                                            name='question_lstm_1')(inputs=image_question_embedding)
         question_embedding, last_fh, _, last_bh, _ = Bidirectional(layer=LSTM(units=self.lstm_dim,
-                                                                       return_sequences=True,
-                                                                       return_state=True,
-                                                                       kernel_regularizer=l2(0.001)),
-                                                      name='question_lstm_2')(inputs=question_embedding)
+                                                                              return_sequences=True,
+                                                                              return_state=True,
+                                                                              kernel_regularizer=l2(0.001)),
+                                                                   name='question_lstm_2')(inputs=question_embedding)
         question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
                                                     activation='softmax'))(inputs=question_embedding)
         question_pred = Lambda(lambda x: x[:, 1:, :],
                                name='question_classifier')(inputs=question_pred)
+
 
         answer_fc_input = Concatenate(axis=-1,
                                       name='answer_fc_input')(inputs=[image_embedding,
@@ -82,14 +83,14 @@ class ShowNTellNet(VQANet):
 
 
         self.model = Model(inputs=[image_input, question_input],
-                           outputs=[question_pred, answer_pred, best_ans])
+                           outputs=[answer_pred, best_ans])
         losses = {
-            'question_classifier': 'categorical_crossentropy',
+            # 'question_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
             'best_ans': dummy
         }
         metrics = {
-            'question_classifier': 'acc',
+            # 'question_classifier': 'acc',
             'answer_classifier': 'acc',
             'best_ans': custom_acc,
         }

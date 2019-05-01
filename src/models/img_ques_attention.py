@@ -44,17 +44,14 @@ class ImgQuesAttentionNet(VQANet):
 
 
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
-                                                      return_sequences=True,
-                                                      kernel_regularizer=l2(0.001)),
+                                                      return_sequences=True),
                                            name='question_lstm_1')(inputs=question_embedding)
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
-                                                      return_sequences=True,
-                                                      kernel_regularizer=l2(0.001)),
+                                                      return_sequences=True),
                                            name='question_lstm_2')(inputs=question_embedding)
 
 
-        vq_attention_weights = TimeDistributed(layer=Dense(units=2 * self.lstm_dim,
-                                                           kernel_regularizer=l2(0.001)))(inputs=image_feat)
+        vq_attention_weights = TimeDistributed(layer=Dense(units=2 * self.lstm_dim))(inputs=image_feat)
         vq_attention_weights = Lambda(lambda x: K.batch_dot(*x, axes=[2, 2]))(inputs=[question_embedding,
                                                                                       vq_attention_weights])
         vq_attention_weights = Lambda(lambda x: softmax(x, axis=-1),
@@ -65,21 +62,17 @@ class ImgQuesAttentionNet(VQANet):
 
 
         question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-                                                    activation='softmax',
-                                                    kernel_regularizer=l2(0.001)),
+                                                    activation='softmax'),
                                         name='question_classifier')(inputs=vq_context_question_embedding)
 
 
         qa_attention_weights = TimeDistributed(layer=Dense(units=1000,
-                                                           activation='relu',
-                                                           kernel_regularizer=l2(0.001)))(inputs=vq_context_question_embedding)
+                                                           activation='relu'))(inputs=vq_context_question_embedding)
         # qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
         qa_attention_weights = TimeDistributed(layer=Dense(units=256,
-                                                           activation='relu',
-                                                           kernel_regularizer=l2(0.001)))(inputs=qa_attention_weights)
+                                                           activation='relu'))(inputs=qa_attention_weights)
         # qa_attention_weights = Dropout(rate=0.5, seed=seed)(inputs=qa_attention_weights)
-        qa_attention_weights = TimeDistributed(layer=Dense(units=1,
-                                                           kernel_regularizer=l2(0.001)))(inputs=qa_attention_weights)
+        qa_attention_weights = TimeDistributed(layer=Dense(units=1))(inputs=qa_attention_weights)
         qa_attention_weights = Lambda(lambda x: softmax(x, axis=1),
                                       name='qa_attention_weights')(inputs=qa_attention_weights)
         qa_context = Dot(axes=1)(inputs=[qa_attention_weights, vq_context_question_embedding])
@@ -88,17 +81,14 @@ class ImgQuesAttentionNet(VQANet):
 
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
-                            kernel_regularizer=l2(0.001),
                             name='answer_fc_1')(inputs=qa_context)
         # answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
-                            kernel_regularizer=l2(0.001),
                             name='answer_fc_2')(inputs=answer_fc_1)
         # answer_fc_2 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_2)
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
-                            kernel_regularizer=l2(0.001),
                             name='answer_classifier')(inputs=answer_fc_2)
 
 
@@ -110,14 +100,14 @@ class ImgQuesAttentionNet(VQANet):
 
 
         self.model = Model(inputs=[image_input, question_input],
-                           outputs=[question_pred, answer_pred, best_ans])
+                           outputs=[answer_pred, best_ans])
         losses = {
-            'question_classifier': 'categorical_crossentropy',
+            # 'question_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
             'best_ans': dummy
         }
         metrics = {
-            'question_classifier': 'acc',
+            # 'question_classifier': 'acc',
             'answer_classifier': 'acc',
             'best_ans': custom_acc,
         }

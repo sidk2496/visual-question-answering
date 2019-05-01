@@ -30,7 +30,7 @@ class QuesAttentionShowNTellNet(VQANet):
         image_embedding = Dense(units=self.question_embed_dim,
                                 activation='relu',
                                 name='image_embedding')(inputs=image_input)
-        image_embedding = Reshape(target_shape=(1, self.question_embed_dim))(inputs=image_embedding)
+        image_embedding_lstm_input = Reshape(target_shape=(1, self.question_embed_dim))(inputs=image_embedding)
 
 
         question_input = Input(shape=(self.MAX_QUESTION_LEN,),
@@ -45,13 +45,18 @@ class QuesAttentionShowNTellNet(VQANet):
 
 
         image_question_embedding = Concatenate(axis=1,
-                                               name='image_question_embedding')(inputs=[image_embedding,
+                                               name='image_question_embedding')(inputs=[image_embedding_lstm_input,
                                                                                         question_embedding])
-        question_embedding = LSTM(units=self.lstm_dim,
-                                  return_sequences=True,
-                                  name='question_lstm')(inputs=image_question_embedding)
-        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE, activation='softmax'),
-        #                                 name='question_classifier')(inputs=question_embedding)
+        question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
+                                                      return_sequences=True),
+                                           name='question_lstm_1')(inputs=image_question_embedding)
+        question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
+                                                      return_sequences=True),
+                                           name='question_lstm_2')(inputs=question_embedding)
+        question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
+                                                    activation='softmax'))(inputs=question_embedding)
+        question_pred = Lambda(lambda x: x[:, 1:, :],
+                               name='question_classifier')(inputs=question_pred)
 
 
         attention_weights = TimeDistributed(layer=Dense(units=1),
@@ -62,9 +67,12 @@ class QuesAttentionShowNTellNet(VQANet):
         context = Lambda(lambda x: K.sum(x, axis=1), name='context')(inputs=attention_mul)
 
 
+        answer_fc_input = Concatenate(axis=-1,
+                                      name='answer_fc_input')(inputs=[image_embedding,
+                                                                      context])
         answer_fc_1 = Dense(units=1000,
                             activation='relu',
-                            name='answer_fc_1')(inputs=context)
+                            name='answer_fc_1')(inputs=answer_fc_input)
         answer_fc_2 = Dense(units=1000,
                             activation='relu',
                             name='answer_fc_2')(inputs=answer_fc_1)
