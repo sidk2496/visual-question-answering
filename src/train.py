@@ -12,8 +12,7 @@ import json
 import sys
 
 from sklearn.model_selection import train_test_split
-from keras.preprocessing.image import load_img
-from keras.preprocessing.image import img_to_array
+from keras.preprocessing.image import load_img, img_to_array
 
 from models.show_n_tell import ShowNTellNet
 from models.ques_attention import QuesAttentionShowNTellNet
@@ -34,10 +33,6 @@ def main(args):
     lstm_dim = 512
     n_answers = 1001
 
-
-    n_train = 500
-
-
     # Read QA data
     qa_data = h5.File(os.path.join(args.data_path, "data_prepro.h5"), "r")
     with open(os.path.join(args.data_path, "data_prepro.json"), "r") as prepro_file:
@@ -48,7 +43,8 @@ def main(args):
         img_feat = np.array(h5.File(os.path.join(args.data_path, "data_img.h5"), "r")['images_train'])
     else:
         print("Loading images...\n")
-        img_feat = [img_to_array(load_img(os.path.join(args.data_path, image_filename), target_size=(224, 224)), dtype='uint8', data_format='channels_first')
+        img_feat = [img_to_array(load_img(os.path.join(args.data_path, image_filename), target_size=(224, 224)),
+                                 dtype='uint8', data_format='channels_first')
                     for image_filename in prepro_data['unique_img_train']]
         img_feat = np.array(img_feat, dtype=np.uint8)
 

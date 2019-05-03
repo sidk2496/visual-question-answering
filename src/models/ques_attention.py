@@ -53,10 +53,11 @@ class QuesAttentionShowNTellNet(VQANet):
         question_embedding = Bidirectional(layer=LSTM(units=self.lstm_dim,
                                                       return_sequences=True),
                                            name='question_lstm_2')(inputs=question_embedding)
-        question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-                                                    activation='softmax'))(inputs=question_embedding)
-        question_pred = Lambda(lambda x: x[:, 1:, :],
-                               name='question_classifier')(inputs=question_pred)
+
+        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
+        #                                             activation='softmax'))(inputs=question_embedding)
+        # question_pred = Lambda(lambda x: x[:, 1:, :],
+        #                        name='question_classifier')(inputs=question_pred)
 
 
         attention_weights = TimeDistributed(layer=Dense(units=1),

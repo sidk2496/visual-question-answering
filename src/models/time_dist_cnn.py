@@ -52,9 +52,9 @@ class TimeDistributedCNNNet(VQANet):
                                                                               return_sequences=True,
                                                                               return_state=True),
                                                                    name='question_lstm_2')(inputs=question_embedding)
-        question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
-                                                    activation='softmax'),
-                                        name='question_classifier')(inputs=question_embedding)
+        # question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
+        #                                             activation='softmax'),
+        #                                 name='question_classifier')(inputs=question_embedding)
 
 
         answer_fc_input = Concatenate(axis=-1,

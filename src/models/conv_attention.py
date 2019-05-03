@@ -87,20 +87,20 @@ class ConvAttentionNet(VQANet):
 
 
         # answer classification
-        answer_fc_1 = Dense(units=1000,
-                            activation='relu',
-                            kernel_regularizer=l2(0.001),
-                            name='answer_fc_1')(inputs=qa_context)
-        # answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
-        answer_fc_2 = Dense(units=1000,
-                            activation='relu',
-                            kernel_regularizer=l2(0.001),
-                            name='answer_fc_2')(inputs=answer_fc_1)
+        # answer_fc_1 = Dense(units=1000,
+        #                     activation='relu',
+        #                     kernel_regularizer=l2(0.001),
+        #                     name='answer_fc_1')(inputs=qa_context)
+        # # answer_fc_1 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_1)
+        # answer_fc_2 = Dense(units=1000,
+        #                     activation='relu',
+        #                     kernel_regularizer=l2(0.001),
+        #                     name='answer_fc_2')(inputs=answer_fc_1)
         # answer_fc_2 = Dropout(rate=0.5, seed=seed)(inputs=answer_fc_2)
         answer_pred = Dense(units=self.n_answers,
                             activation='softmax',
                             kernel_regularizer=l2(0),
-                            name='answer_classifier')(inputs=answer_fc_2)
+                            name='answer_classifier')(inputs=qa_context)
 
 
         best_ans = Lambda(lambda x: K.argmax(x, axis=-1))(inputs=answer_pred)

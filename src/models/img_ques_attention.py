@@ -100,14 +100,14 @@ class ImgQuesAttentionNet(VQANet):
 
 
         self.model = Model(inputs=[image_input, question_input],
-                           outputs=[answer_pred, best_ans])
+                           outputs=[question_pred, answer_pred, best_ans])
         losses = {
-            # 'question_classifier': 'categorical_crossentropy',
+            'question_classifier': 'categorical_crossentropy',
             'answer_classifier': 'categorical_crossentropy',
             'best_ans': dummy
         }
         metrics = {
-            # 'question_classifier': 'acc',
+            'question_classifier': 'acc',
             'answer_classifier': 'acc',
             'best_ans': custom_acc,
         }

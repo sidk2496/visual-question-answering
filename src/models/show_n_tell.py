@@ -58,8 +58,8 @@ class ShowNTellNet(VQANet):
                                                                    name='question_lstm_2')(inputs=question_embedding)
         question_pred = TimeDistributed(layer=Dense(units=self.VOCAB_SIZE,
                                                     activation='softmax'))(inputs=question_embedding)
-        question_pred = Lambda(lambda x: x[:, 1:, :],
-                               name='question_classifier')(inputs=question_pred)
+        # question_pred = Lambda(lambda x: x[:, 1:, :],
+        #                        name='question_classifier')(inputs=question_pred)
 
 
         answer_fc_input = Concatenate(axis=-1,
